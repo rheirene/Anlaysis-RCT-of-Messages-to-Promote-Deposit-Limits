@@ -9,7 +9,7 @@ This html document is the direct output of computer code from the statistical pr
 
 <br>
 <center>
- **"A randomised control trial of messages to promote limit setting and evaluate the impact of limits on online gambling behaviour**
+ **"A randomised control trial of messages to promote limit setting and the impact of limits on online gambling behaviour**
 </center>
 <br>
 
