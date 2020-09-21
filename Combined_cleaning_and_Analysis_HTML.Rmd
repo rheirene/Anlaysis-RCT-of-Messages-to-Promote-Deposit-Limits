@@ -9,7 +9,7 @@ This html document is the direct output of computer code from the statistical pr
 
 <br>
 <center>
- **"A randomised control trial of messages to promote limit setting and the impact of limits on online gambling behaviour**
+ **"A randomised control trial to evaluate messages that promote limit setting and the impact of limits on online gambling behaviour**
 </center>
 <br>
 
@@ -2702,6 +2702,7 @@ Most parametric have been violated so need to use another approach. Use Robust A
 
 - https://cran.r-project.org/web/packages/WRS2/vignettes/WRS2.pdf
 
+
 #### ROBUST ANCOVA: Average daily wager
 No need to remove outliers here so lets make the orginal dataset suitable for this analysis:
 ```{r warnings = FALSE, message = FALSE}
@@ -2713,6 +2714,7 @@ ave.daily.wager.comparison.ANCOVA$window_limit_setter <- as.factor(ave.daily.wag
 ```
 Run ROBUST ANCOVA (use standard parameters: tr = .2, fr1 & fr2 = 1):
 ```{r warnings = FALSE, message = FALSE, , result = 'asis'}
+set.seed(99)
 Robust.ANCOVA.averwager <- ancova(average_daily_wager_differencescore ~ Average_daily_wager + window_limit_setter,
                                   data = ave.daily.wager.comparison.ANCOVA)
 
@@ -2744,6 +2746,7 @@ avwager.pvalue <- as.matrix(Robust.ANCOVA.averwager$p.vals) %>% as.data.frame()
 avwager.pvalue1 <- avwager.pvalue[1,]
 avwager.pvalue2 <- avwager.pvalue[2,]
 avwager.pvalue3 <- avwager.pvalue[3,]
+
 ```
 It is clear from the above output that n1 is the limit setting group and n2 is non-setters, given the lower number of ps in the upper design points (see mean/median (above), and distribution of scores in figures below). Let's check this:
 
@@ -3205,12 +3208,13 @@ No need to remove outliers here so lets make the orginal dataset suitable for th
 ```
 Run ROBUST ANCOVA:
 ```{r warnings = FALSE, message = FALSE}
- Robust.ANCOVA.sd.averwager <- ancova(sd_av_daily_wager_differencescore ~ SD_of_ave_daily_wager + window_limit_setter,
+set.seed(101)
+Robust.ANCOVA.sd.averwager <- ancova(sd_av_daily_wager_differencescore ~ SD_of_ave_daily_wager + window_limit_setter,
                                    data = sd.of.ave.daily.wager.comparison.ANCOVA)
  
  Robust.ANCOVA.sd.averwager
  
- # How to select parts out this output for R Markdown manuscript:
+# How to select parts out this output for R Markdown manuscript:
 sd.avwager.evalupts <- as.matrix(Robust.ANCOVA.sd.averwager$evalpts) %>% as.data.frame()
 # then:
 sd.avwager.evalupts[1,]
@@ -3600,6 +3604,7 @@ net.loss.comparison.data.ANCOVA<- net.loss.comparison %>%
 ```
 Run ROBUST ANCOVA:
 ```{r warnings = FALSE, message = FALSE}
+set.seed(102)
 Robust.ANCOVA.net.loss <- ancova(net_loss_differencescore ~ net_loss + window_limit_setter, 
                                      data = net.loss.comparison.data.ANCOVA)
 
@@ -4094,6 +4099,7 @@ betting.frequency.comparison.data.ANCOVA<- betting.frequency.comparison %>%
 
 Run ROBUST ANCOVA:
 ```{r warnings = FALSE, message = FALSE}
+set.seed(103)
 Robust.ANCOVA.betting.frequency <- ancova(betting_frequency_differencescore ~ betting_frequency + window_limit_setter,
                                      data = betting.frequency.comparison.data.ANCOVA)
 
@@ -4417,6 +4423,7 @@ betting.intensity.comparison.data.ANCOVA<- betting.intensity.comparison %>%
 
 Run ROBUST ANCOVA:
 ```{r warnings = FALSE, message = FALSE}
+set.seed(104)
 Robust.ANCOVA.betting.intensity <- ancova(betting_intensity_differencescore ~ betting_intensity + window_limit_setter,
                                               data = betting.intensity.comparison.data.ANCOVA)
 
