@@ -20,7 +20,7 @@ The analysis code that underlies this document can be accessed on this project's
 - https://osf.io/6dpkw/
 
 ## Technical introduction
-This document presents the analysis code used to pre-process (e.g., combine datasets, organise data, rename variables and values) and analyse data for the above-titled study. The code is annotated and the resulting outputs are included (although outputs for code that would present customer ids from appearing have been preventing from appearing [wherever possible this has been avoided]).
+This document presents the analysis code used to pre-process (e.g., combine datasets, organise data, rename variables and values) and analyse data for the above-titled study. The code is annotated and the resulting outputs are included (although outputs for code that would present customer ids from appearing have been preventing from appearing [wherever possible the need to prevent outcomes appearing has been avoided]).
 <br>
 
 This document does not include the pre-processing of the original datasets provided by each operator. Four analysis scripts (one for each operators' data) were developed and used for the pre-processing of the original datasets. These can all be accessed on this project's OSF page and have the following titles:
@@ -70,7 +70,7 @@ packages <- c("MOTE",
               "multicon",
               "ggridges",
               "broom",
-              "broom.mixed",
+              # "broom.mixed",
               "ggstatsplot",
               "ggsci",
               "showtext",
@@ -81,15 +81,40 @@ packages <- c("MOTE",
               "lsr",
               "BayesFactor",
               "epitools",
-              "DescTools",
               "mosaic",
               "kableExtra",
               "table1",
               "english",
-              "apa")
+              "apa",
+              "WebPower",
+              "kableExtra",
+              "gtsummary",
+              "Gmisc",
+              "glue",
+              "htmlTable",
+              "grid",
+              "magrittr",
+              "BFpack")
+              # "psych") # Used for "phi" function
 
 # Load packages:
 ipak(packages)
+
+# Had to load separately for an unknown reason:
+library("DescTools")
+# Had to run the following code to install "ggstatsplot" when using a laptop:
+
+# remotes::install_github(
+#   repo = "IndrajeetPatil/ggstatsplot", # package path on GitHub
+#   dependencies = TRUE, # installs packages which ggstatsplot depends on
+#   upgrade_dependencies = TRUE # updates any out of date dependencies
+# )
+
+# If encountering bugs with packages this code will remove them all and then you can reinstall:
+# ip <- installed.packages()
+# pkgs.to.remove <- ip[!(ip[,"Priority"] %in% c("base", "recommended")), 1]
+# sapply(pkgs.to.remove, remove.packages)
+
 ```
 
 Remove all objects from work space before starting:
@@ -99,7 +124,10 @@ Remove all objects from work space before starting:
 
 Load relevant fonts for figures:
 ```{r message = FALSE, results = FALSE}
-font_add_google("Poppins", "Poppins")
+
+font_add_google("Poppins")
+font_add_google("Cormorant Garamond")
+
 showtext_auto()
 ```
 
@@ -123,11 +151,11 @@ operator1names<- names(as.list(operator1)) %>%
 ``` {r message = FALSE, results = FALSE, warnings = FALSE}
 operator2 <- read.csv("Analysis data/Operator 2/Final_dataset_Operator2.csv") %>%
   as_tibble() %>%
-  # rename(customer_id = customerid,
+  # dplyr::rename(customer_id = customerid,
   #        post_code = postcode) %>%
   mutate(customerid = as.factor(customerid),
          postcode = as.double(postcode)) %>% 
-  # select(-customer_id,
+  #dplyr::select(-customer_id,
   #        -post_code) %>%
     print()
 
@@ -143,14 +171,14 @@ operator2names<- names(as.list(operator2)) %>%
 ### Operator 3
 ``` {r message = FALSE, results = FALSE, warnings = FALSE}
 operator3 <- read.csv("Analysis data/Operator 3/Final_dataset_Operator3.csv") %>%
-  # rename(customer_id = customerid,
+  # dplyr::rename(customer_id = customerid,
   #        timeout.duration.pre = timeout_duration_pre,
   #        timeout.duration.post = timeout_duration_post) %>%
   mutate(customerid = as.factor(customerid),
          timeout_duration_pre = as.double(timeout_duration_pre),
          timeout_duration_post = as.double(timeout_duration_post),
          ) %>% 
-  # select(-customer_id,
+  #dplyr::select(-customer_id,
   #        -timeout.duration.pre,
   #        -timeout.duration.post) %>%
   as_tibble() %>%
@@ -165,9 +193,9 @@ operator3names<- names(as.list(operator3)) %>%
 ### Operator 4
 ``` {r message = FALSE, results = FALSE, warnings = FALSE}
 operator4 <- read.csv("Analysis data/Operator 4/Final_dataset_Operator4.csv") %>%
-# rename(customer_id = customerid) %>%
+# dplyr::rename(customer_id = customerid) %>%
   mutate(customerid = as.factor(customerid)) %>% 
-  # select(-customer_id) %>%
+  #dplyr::select(-customer_id) %>%
   as_tibble() %>%
   print()
 ```
@@ -185,7 +213,7 @@ all.operators.data<- bind_rows(operator1,
           operator2,
           operator3,
           operator4) %>% # Combined datasets
-select(-limit_date, 
+dplyr::select(-limit_date, 
        -bonusbet_amount_wagered_pre,
        -regular_payout_pre,
        -bonusbet_payout_pre,
@@ -193,13 +221,13 @@ select(-limit_date,
        -bonusbet_amount_wagered_pre,
        -regular_payout_pre,
        -bonusbet_payout_pre,
-       -X ) %>% # Remove irrelevant rows
+       -X) %>% # Remove irrelevant rows
   as_tibble() %>%
   print()
 
 # Take a look at the new dataset and check for any irregularities:
 all.operators.data %>%
-  select(1:8)
+ dplyr::select(1:8)
 
 # Convert all date columns to date format----
 all.operators.data$date_account_opened<- as.Date(all.operators.data$date_account_opened, format = "%Y-%m-%d") # date_account_opened
@@ -218,7 +246,7 @@ all.operators.data$self_exclusion_finish_date<- as.Date(all.operators.data$self_
 head(all.operators.data)
 
 all.operators.data  %>%
-  select(date_account_opened, 
+ dplyr::select(date_account_opened, 
          date_account_closed,
          window_limit_date,
          limit_date_pre,
@@ -246,7 +274,7 @@ all.operators.data %>%
 # How many customers are there per operator:
 kable(all.operators.data %>%
   group_by(operator) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
     ),
   caption = "Number of consumers per operator")  %>%
@@ -255,7 +283,7 @@ kable(all.operators.data %>%
 # How many customers are there per Condition:
 kable(all.operators.data %>%
   group_by(condition) %>%
-  summarise(
+  dplyr::summarise(
    n = n()
    ), caption = "Number of consumers per condition") %>%
     kable_classic(full_width = F, html_font = "Cambria")
@@ -277,7 +305,7 @@ Let's first see how many don't meet each criterion:
 ### Criterion 1: Placed bets on a minimum of five days in the 30 days preceding messaging:
 ``` {r message = FALSE}
 too.few.betting.days<- all.operators.data %>%
-  filter(last30_betting_days_frequency < 5)
+  filter(last30_betting_days_frequency < 5) 
 
 nrow(too.few.betting.days)
 ```
@@ -286,7 +314,7 @@ Let's see whether these all come from the same operator or a mix:
 ``` {r message = FALSE}
 too.few.betting.days %>%
   group_by(operator) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   )
 ```
@@ -298,10 +326,9 @@ table(too.few.betting.days$window_limit_setter)
 ```
 Yes, 2. Double check using another method:
 ``` {r message = FALSE}
-
 too.few.betting.days %>%
   filter(window_limit_setter == "LimitSetter") %>%
-  select(1:10,
+ dplyr::select(1:10,
          -customerid,
          -postcode)
 ```
@@ -310,17 +337,18 @@ Both limit setters in this cohort were from Operator 4.
 ### Criterion 2: Held a wagering account for at least 90 days:
 ``` {r message = FALSE}
 late.registration.date<- all.operators.data %>%
+  anti_join(too.few.betting.days) %>% # let's filter them out sequentially so our numbers tally nicely in our flowchart
   filter(date_account_opened > as.Date("2019-07-16"))
 
 nrow(late.registration.date)
 ```
-This will exclude 1,757 participants
+This would exclude 1,757 participants in total, but 1564 will be removed after already removing those with too few betting days.
 
 Let's see whether these all come from the same operator or a mix:
 ``` {r message = FALSE}
 late.registration.date %>%
   group_by(operator) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   )
 ```
@@ -330,7 +358,7 @@ Does this remove any of our window limit letters?
 ``` {r message = FALSE}
 late.registration.date %>%
   filter(window_limit_setter == "LimitSetter") %>%
-  select(1:10,
+ dplyr::select(1:10,
          -customerid,
          -postcode)
 ```
@@ -345,7 +373,7 @@ table(all.operators.data$timeout_duration_pre)
 all.operators.data %>%
   filter(timeout_pre != "None" |
          timeout_post != "None") %>%
-  select(timeout_duration_pre, 
+ dplyr::select(timeout_duration_pre, 
        timeout_start_date_pre,
        timeout_finish_date_pre,
        timeout_pre,
@@ -363,38 +391,70 @@ Identify anyone on timeouts using code:
 all.operators.data %>%
   filter(as.Date("2019-10-14") < timeout_finish_date_pre &
   as.Date("2019-10-23") >  timeout_start_date_pre) %>%
-  select(timeout_duration_pre, 
+ dplyr::select(timeout_duration_pre, 
          timeout_start_date_pre,
          timeout_finish_date_pre,
          timeout_pre,
          operator,
          window_limit_setter)
+
+# Check if anyone was on a timeout for the entire window:
+timeout_for_entire_window<- all.operators.data %>%
+  filter(timeout_start_date_pre < as.Date("2019-10-14") &
+  timeout_finish_date_pre > as.Date("2019-10-23")) %>%
+ dplyr::select(timeout_duration_pre, 
+         timeout_start_date_pre,
+         timeout_finish_date_pre,
+         timeout_start_date_post,
+        timeout_finish_date_post,
+         timeout_pre,
+         operator,
+         window_limit_setter) %>%
+  print(n=50)
+
 ```
-Only one person was on timeout and they were from Operator 4.
+Only one person was on timeout and they were from Operator 4. The timeout started on 11/10/2019 and ended on 18/10/2019 and so they would've received one of messages. Based on a reviewer suggestion, we will leave this person in although we had originally excluded them. 
 
 ### Additional elgibility criteria
 We need to check that no one self-excluded during the messaging period:
 ``` {r message = FALSE, results = FALSE}
-self.excluders<- all.operators.data %>%
+self.excluders.during<- all.operators.data %>%
   filter(self_exclusion_start_date >=  as.Date("2019-10-14") &
-         self_exclusion_start_date <=  as.Date("2019-10-23") &
-           window_limit_setter == "None") %>%
-  select(self_exclusion_start_date,
+         self_exclusion_start_date <=  as.Date("2019-10-23")) %>%
+ dplyr::select(self_exclusion_start_date,
          self_exclusion_finish_date,
          self_exclusion,
          customerid,
          operator,
          window_limit_setter) 
 
-nrow(self.excluders)
-# Nine people self excluded during this window. Two of these were limit setters in response to messages and so we need to retain these for hypothesis testing
+nrow(self.excluders.during)
+# Nine people self excluded during this window. Two of these were limit setters 
+
+# But was anyone self-exclusion for the entire duration of the messaging period?
+self.excluders.all<- all.operators.data %>%
+  filter(self_exclusion_start_date <=  as.Date("2019-10-14") &
+         self_exclusion_finish_date >=  as.Date("2019-10-23") &
+           window_limit_setter == "None") %>%
+ dplyr::select(operator,
+                self_exclusion_start_date,
+         self_exclusion_finish_date,
+         self_exclusion,
+         customerid,
+         operator,
+         window_limit_setter) 
+
+nrow(self.excluders.all)
+# No one
 ```
 We also need to check that no one closed their account during the messaging period:
 ``` {r message = FALSE, results = FALSE}
 account.closers<- all.operators.data %>%
-  filter(date_account_closed <=  as.Date("2019-10-23")  &
-           window_limit_setter == "None") %>%
-  select(date_account_closed,
+  anti_join(too.few.betting.days) %>% 
+  anti_join(late.registration.date) %>% 
+  filter(date_account_closed <  as.Date("2019-10-14")) %>%
+ dplyr::select(operator,
+                date_account_closed,
          self_exclusion_start_date,
          self_exclusion_finish_date,
          self_exclusion,
@@ -403,7 +463,7 @@ account.closers<- all.operators.data %>%
          window_limit_setter)
 
 nrow(account.closers)
-# 58 people closed their account during window. Five of these were limit setters in response to messages and so we need to retain these for hypothesis testing
+# 5 people closed their account prior to the messaging window. Five of these were limit setters in response to messages and so we need to retain these for hypothesis testing
 ``` 
 
 # --------------------------------------------------------------------------------
@@ -414,9 +474,7 @@ Add all filters for eligibility criteria and create a final dataset for hypothes
 hypothesis.test.data<- all.operators.data %>%
   filter(last30_betting_days_frequency >= 5) %>% # Remove those with too few betting days
   filter(date_account_opened <= as.Date("2019-07-16"))  %>% # Remove those opened their account too recently
-  filter(customerid != "12937416") %>% # Remove the one person on a timeout
-  anti_join (self.excluders)  %>% # Remove the individuals who self excluded
-  anti_join(account.closers) %>% # Remove those who closed their account
+  anti_join(account.closers) %>% # Remove those who closed their account before messages could be sent
   print()
 
 # Randomly check for customerids for those who self excluded or closed their accounts to check the anti-joins worked (removed for anonymity):
@@ -436,7 +494,7 @@ nrow(hypothesis.test.data)
 # Number of participants per operator:
 kable(hypothesis.test.data %>% 
   group_by(operator) %>% 
-  summarise(
+  dplyr::summarise(
   n =  n()
   ), caption = "Number of participants per operator") %>%
     kable_classic(full_width = F, html_font = "Cambria")
@@ -444,7 +502,7 @@ kable(hypothesis.test.data %>%
 # Number of participants per condition:
 kable(hypothesis.test.data %>% 
   group_by(condition) %>% 
-  summarise(
+  dplyr::summarise(
    n =  n()
   ), caption = "Number of participants per condition") %>%
     kable_classic(full_width = F, html_font = "Cambria")
@@ -453,7 +511,7 @@ kable(hypothesis.test.data %>%
 kable(hypothesis.test.data %>% 
   # distinct(customerid, .keep_all = TRUE) %>% # This was added to check their are no duplicates in the sample
   group_by(gender) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
     ) %>% 
   # group_by(n) %>% 
@@ -462,7 +520,7 @@ kable(hypothesis.test.data %>%
 
 # Age summaries:
 kable(hypothesis.test.data %>% 
-  summarise(
+  dplyr::summarise(
     age.mean = mean(age),
     age.median = median(age),
     age.min = min(age),
@@ -478,7 +536,7 @@ kable(hypothesis.test.data %>%
 kable(hypothesis.test.data %>% 
   group_by(condition, 
            gender) %>% 
-  summarise(
+  dplyr::summarise(
     age.mean = mean(age),
     age.median = median(age),
     age.min = min(age),
@@ -494,7 +552,7 @@ kable(hypothesis.test.data %>%
 kable(hypothesis.test.data %>%
   group_by(condition,
            gender) %>% 
-  summarise(
+  dplyr::summarise(
     total = n()
   ) %>% 
   group_by(condition) %>% 
@@ -506,7 +564,7 @@ kable(hypothesis.test.data %>%
 # Demographic breakdown by condition only:
 kable(hypothesis.test.data %>% 
   group_by(condition) %>% 
-  summarise(
+  dplyr::summarise(
     "Mean age" = mean(age),
     "Median age" = median(age),
     "Min age" = min(age),
@@ -517,21 +575,12 @@ kable(hypothesis.test.data %>%
     kable_classic(full_width = F, html_font = "Cambria") 
 ```
 
-### Create simple summary table
-``` {r message = FALSE, warning = FALSE}
-
-Table1<- table1(~ age + gender | condition, overall = FALSE, data = hypothesis.test.data, results = 'asis') %>%
-  print()
-
-```
-<br><br>
-
 ## Limit setting summaries
 Total number of limit setters:
 ```{r message=FALSE, warning=FALSE}
 kable(hypothesis.test.data %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()), caption = "Limit setting (in window of interest) summary", col.names = c("Group","n")) %>%
     kable_classic(full_width = F, html_font = "Cambria") 
 ```
@@ -543,7 +592,7 @@ Total number of limit setters excluding controls (with %):
 intervention.limits.sans.controls<- hypothesis.test.data %>%
   group_by(window_limit_setter) %>%
   filter(condition != "1") %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
     ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -562,7 +611,7 @@ Number of limit setters by operator:
 kable(hypothesis.test.data %>%
   group_by(operator, 
            window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n()), caption = "Number of limit setters by operator",
   col.names = c("Operator", "Group","n")) %>%
     kable_classic(full_width = F, html_font = "Cambria") 
@@ -577,7 +626,7 @@ Message <- as.factor(c("Controls", "Informative", "Informative", "Social", "Soci
 limit.summary<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
              n = n()
              ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -585,7 +634,7 @@ limit.summary<- hypothesis.test.data %>%
   mutate(Total = LimitSetter + None) %>%
   mutate(Percentage = (LimitSetter/Total)*100) %>%
   bind_cols(colour, Message) %>%
-  rename(Delivery= ...6,
+  dplyr::rename(Delivery= ...6,
          Message = ...7)  %>%
   as.data.frame()
 
@@ -596,10 +645,17 @@ kable(limit.summary, caption = "Number of limit setters by condition",
 ```
 <br>
 
-Plot the primary outcome in a bar chart:
+## Plot the primary outcome in a bar chart:
 ``` {r}
+
+grob <- grobTree(textGrob("(values = n)", x=0.073,  y=0.2, hjust=0,
+  gp=gpar(col="black", fontsize=6, fontface="italic", family = "Poppins")))
+# Plot
+
 Figure2 <- ggplot(limit.summary, aes(x=Message, y=Percentage, fill=Delivery)) + 
   geom_bar(stat = "identity", position = position_dodge2(width = 2), alpha = 1, color="black")+
+  geom_text(aes(label=LimitSetter), position=position_dodge(width=0.9), vjust=-.25, family = "Poppins",size = 2, color="black")+ # add n labels for each bar
+  annotation_custom(grob) +
   theme(axis.text = element_text(color = "black", size = 8.5, face = "plain", family = "Poppins"))+
   theme(axis.title.x = element_text(color="black", size=10, face="plain", vjust=-2.3, family = "Poppins"))+
   theme(axis.title.y = element_text(color="black", size=10, face="plain", vjust = 2.5, family = "Poppins"))+
@@ -636,7 +692,7 @@ Compute the number of limit setters by IV (delivery method & message content)
 hypothesis.test.data %>%
   filter(condition == "2" | condition == "3") %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
   ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -648,7 +704,7 @@ hypothesis.test.data %>%
 hypothesis.test.data %>%
   filter(condition == "4" | condition == "5") %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
   ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -660,7 +716,7 @@ hypothesis.test.data %>%
 hypothesis.test.data %>%
   filter(condition == "6" | condition == "7") %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
   ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -672,7 +728,7 @@ hypothesis.test.data %>%
 hypothesis.test.data %>%
   filter(condition == "2" | condition == "4" | condition == "6") %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
   ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -684,7 +740,7 @@ hypothesis.test.data %>%
 hypothesis.test.data %>%
   filter(condition == "3" | condition == "5" | condition == "7") %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
   ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -696,7 +752,7 @@ hypothesis.test.data %>%
 control.limit.summary <- hypothesis.test.data %>%
   filter(condition == "1") %>%
   group_by(window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
   ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -749,7 +805,7 @@ opening.rates.4 <- bind_rows(group2mes1.4,
 opening.rates.summarytable.4 <- opening.rates.4 %>% group_by(MESSAGE_DATE, 
                              MSG_GROUP,
                              OPENED_YN) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>%
   pivot_wider(names_from = OPENED_YN, values_from = n) %>%
@@ -758,7 +814,7 @@ opening.rates.summarytable.4 <- opening.rates.4 %>% group_by(MESSAGE_DATE,
 
 write.csv(opening.rates.summarytable.4, file = "Analysis data/opening_rate_summary_Operator4.csv")
 
-Operator4.opening.summary<- read.csv("Analysis data/opening_rate_summary_Operator4.csv") %>% rename (PercentageOpen = Percentage,
+Operator4.opening.summary<- read.csv("Analysis data/opening_rate_summary_Operator4.csv") %>% dplyr::rename(PercentageOpen = Percentage,
         Condition = MSG_GROUP)
 
 operator<- as.factor(rep(c("2", "3", "4"), each = 6)) # Create a character vector to identify this message response
@@ -769,9 +825,9 @@ opening.summary.combined <- bind_rows(Operator2.opening.summary,
           Operator3.opening.summary,
           Operator4.opening.summary) %>% 
   bind_cols(operator) %>%
-  rename(operator = ...10,
+  dplyr::rename(operator = ...10,
          condition = Condition) %>%
-  select(condition, Message, MESSAGE_DATE, operator, PercentageOpen) %>%
+ dplyr::select(condition, Message, MESSAGE_DATE, operator, PercentageOpen) %>%
   group_by(condition, operator) %>% 
   top_n(1, PercentageOpen) %>%
   print()
@@ -781,12 +837,12 @@ opening.rate.summary <- bind_rows(Operator2.opening.summary,
           Operator3.opening.summary,
           Operator4.opening.summary) %>% 
   bind_cols(operator) %>%
-  rename(operator = ...10,
+  dplyr::rename(operator = ...10,
          condition = Condition) %>%
-  select(condition, Message, MESSAGE_DATE, operator, PercentageOpen) %>%
+ dplyr::select(condition, Message, MESSAGE_DATE, operator, PercentageOpen) %>%
   group_by(condition, operator) %>%
   ungroup() %>%
-  summarise(
+  dplyr::summarise(
     min.open = min(PercentageOpen),
     max.open = max(PercentageOpen),
     mean.open = mean(PercentageOpen)
@@ -797,7 +853,7 @@ opening.rate.summary <- bind_rows(Operator2.opening.summary,
 consumer.numbers<- hypothesis.test.data %>% 
   group_by(operator,
            condition) %>% 
-  summarise(
+  dplyr::summarise(
    n =  n()
   ) %>%
   filter(condition == "2"|
@@ -816,7 +872,7 @@ estimated.open.rates.os234<- opening.summary.combined %>%
   mutate(ProportionOpen = PercentageOpen/100) %>%
   mutate(estimate.openers.n = n*ProportionOpen) %>%
   group_by(condition...1) %>%
-  summarise(
+  dplyr::summarise(
     number.opened1 = sum(estimate.openers.n)
   ) %>%
   print()
@@ -826,7 +882,7 @@ Now calculate the mean percentage for each condition across the 3 operators wher
 mean.openingrates<- opening.summary.combined %>%
   bind_cols(consumer.numbers) %>%
   group_by(condition...1) %>%
-  summarise(
+  dplyr::summarise(
     mean.opening.rate = mean(PercentageOpen)
   ) %>%
   print()
@@ -838,7 +894,7 @@ estimated.open.rates.os1<- hypothesis.test.data %>%
            condition == "4"|
            condition == "6") %>%
   group_by(condition) %>%
-  summarise(
+  dplyr::summarise(
    n = n()
   ) %>%
   bind_cols(mean.openingrates) %>%
@@ -851,8 +907,8 @@ Now join the estimated opening rates data tables for operators 2-4 and operator 
 estimated.open.rates.total <- estimated.open.rates.os234 %>%
   bind_cols(estimated.open.rates.os1) %>%
   mutate(total.estimated.opened = number.opened1+number.opened2) %>%
-  rename(condition = condition...1) %>%
- select(condition, 
+  dplyr::rename(condition = condition...1) %>%
+dplyr::select(condition, 
         number.opened1,
         mean.opening.rate,
         number.opened2,
@@ -867,7 +923,7 @@ hypothesis.test.data %>%
            condition == "6") %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
              n = n()
              ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -882,14 +938,14 @@ email.open.rates.adjusted<- hypothesis.test.data %>%
            condition == "6") %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
              n = n()
              ) %>%
   pivot_wider(names_from = window_limit_setter, 
               values_from = n) %>%
   full_join(estimated.open.rates.total) %>%
   ungroup() %>%
-  summarise(
+  dplyr::summarise(
     totaln = sum(total.estimated.opened)
   ) %>%
   mutate(percentagetotal= (66/totaln)*100) %>%
@@ -902,7 +958,7 @@ email.open.rates<- hypothesis.test.data %>%
            condition == "6") %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise( 
+  dplyr::summarise( 
              n = n()
              ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -910,7 +966,7 @@ email.open.rates<- hypothesis.test.data %>%
   ungroup() %>%
   mutate(Total = LimitSetter + None) %>%
   mutate(Percentage = (LimitSetter/Total)*100) %>% # Cut off here to see breakdown by condition
-  summarise(
+  dplyr::summarise(
     totaln = sum(Total)
   ) %>%
   mutate(percentagetotal= (66/totaln)*100) %>%
@@ -925,7 +981,7 @@ hypothesis.test.data %>%
   condition != "2" &
   condition != "4" &
   condition != "6") %>%
-  summarise( 
+  dplyr::summarise( 
     n = n()
     ) %>%
   pivot_wider(names_from = window_limit_setter, 
@@ -963,7 +1019,7 @@ Figure3data$Limit_window <- factor(Figure3data$Limit_window,
 kable(Figure3data %>%
   group_by(Limit_window) %>%
   filter(condition != "1") %>%
-  summarise(
+  dplyr::summarise(
     n =  n(),
     meanlimit = mean(window_limit_amount),
     medianlimit = median(window_limit_amount),
@@ -1016,12 +1072,12 @@ Figure3
 ```
 <br>
 
-Warning, the above figure is capped at $2,300 cutting out three outliers: One person with the weekly deposit limit of approximately $6000, one person with a daily deposit limit of $5000, and another of $20,000
+Warning, the above figure is capped at \$2,300 cutting out three outliers: One person with the weekly deposit limit of approximately \$6000, one person with a daily deposit limit of \$5000, and another of $20,000
 <br>
 
 Save plot:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
-ggsave("Figures/Figure3.pdf",
+ggsave("Figures/Figure3.jpeg",
        width = 80,
        height = 85,
        units = c("mm"),
@@ -1079,7 +1135,7 @@ Further characterise the deposit limits set prior to be messages:
 kable(hypothesis.test.data %>%
   group_by(limit_window_pre) %>%
   filter(condition != "1") %>%
-  summarise(
+  dplyr::summarise(
     n() 
   ), caption = "Summary of limits set pre-messages") %>%
     kable_classic(full_width = F, html_font = "Cambria")
@@ -1104,7 +1160,7 @@ hypothesis.test.data.sanscontrols <- hypothesis.test.data %>%
 # Summary figures for age:
 kable(hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     age.mean = mean(age),
     age.median = median(age),
     age.min = min(age),
@@ -1154,7 +1210,7 @@ wilcox.test(age ~ window_limit_setter,
 kable(hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            gender) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   ) %>% 
   group_by(window_limit_setter) %>% 
@@ -1170,12 +1226,12 @@ Test whether the proportion of males who set limits significantly greater than t
 gender.table<- hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            gender) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   )  %>% 
   as.data.frame() %>% 
   pivot_wider(names_from = gender, values_from = total) %>%
-  select("F",
+ dplyr::select("F",
          "M") %>%
   as.matrix() %>%
   print()
@@ -1198,7 +1254,7 @@ chisq_apa(chisq.test(gender.table),
 kable(hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            operator) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   ) %>% 
   group_by(window_limit_setter) %>% 
@@ -1215,12 +1271,12 @@ Test whether the proportion of limits set associated with the operator from whic
 operator.table<- hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            operator) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   )  %>% 
   as.data.frame() %>% 
   pivot_wider(names_from = operator, values_from = total) %>%
-  select("1",
+ dplyr::select("1",
          "2",
          "3",
          "4") %>%
@@ -1239,7 +1295,7 @@ chisq.test(operator.table)
 kable(hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            limit_setter_pre) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   ) %>% 
   group_by(window_limit_setter) %>% 
@@ -1255,12 +1311,12 @@ Test whether the proportion of window_limit_setters who have previously set limi
 prelimit.table<- hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            limit_setter_pre) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   )  %>% 
   as.data.frame() %>% 
   pivot_wider(names_from = limit_setter_pre, values_from = total) %>%
-  select(PreLimitSetter,
+ dplyr::select(PreLimitSetter,
          None) %>%
   as.data.frame() %>%
   print()
@@ -1284,7 +1340,7 @@ chisq_apa(chisq.test(prelimit.table),
 kable(hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            timeout_pre) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   ) %>% 
   group_by(window_limit_setter) %>% 
@@ -1300,12 +1356,12 @@ Test whether the proportion of window_limit_setters who have previously used tim
 pretimeout.table<- hypothesis.test.data.sanscontrols %>%
   group_by(window_limit_setter, 
            timeout_pre) %>%
-  summarise(
+  dplyr::summarise(
     total = n()
   )  %>% 
   as.data.frame() %>% 
   pivot_wider(names_from = timeout_pre, values_from = total) %>%
-  select(TimeOutPre,
+ dplyr::select(TimeOutPre,
          None) %>%
   print()
 ```
@@ -1344,14 +1400,14 @@ First, compare differences in limit setting frequency across all conditions (no 
 primary.outcome.table<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% 
   pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
           None) %>%
   as.data.frame() %>%
-  select(LimitSetter,
+ dplyr::select(LimitSetter,
          None) %>%
   print()
 ```
@@ -1390,18 +1446,18 @@ Compare differences in limit setting frequency between controls and all messagin
 messagecondition.limit.summary<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
           None) %>%
   filter(condition != "1") %>%
   as.data.frame() %>%
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>%
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() 
 
@@ -1410,18 +1466,18 @@ controlcondition.limit.summary<- hypothesis.test.data %>%
   distinct(customerid, .keep_all = TRUE) %>%
   group_by(condition,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter, 
           None) %>%
   filter(condition == "1") %>%
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>%
   as.data.frame() %>%
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() 
 
@@ -1475,19 +1531,19 @@ Further info on the Bayesian test of association used: https://learningstatistic
 messageconditions.hyp1.relative<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
           None) %>%
   filter(condition != "1") %>%
   as.data.frame() %>%
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>%
   mutate(proportion_message_groups = LimitSetter/(LimitSetter + NoLimit)*100) %>%
-  select(proportion_message_groups) %>%
+ dplyr::select(proportion_message_groups) %>%
   print() 
 
 # Controls:
@@ -1495,18 +1551,18 @@ controls.hyp1.relative<- hypothesis.test.data %>%
   distinct(customerid, .keep_all = TRUE) %>%
   group_by(condition,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter, 
           None) %>%
   filter(condition == "1") %>%
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>%
  mutate(proportion_controls = LimitSetter/(LimitSetter + NoLimit)*100) %>%
- select(proportion_controls) %>%
+dplyr::select(proportion_controls) %>%
  print() 
   
 controls.hyp1.relative %>%
@@ -1524,7 +1580,7 @@ Compare differences in limit setting frequency between messages with different c
 informative.conditions.summary <- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1532,11 +1588,11 @@ informative.conditions.summary <- hypothesis.test.data %>%
   filter(condition == "2" |
            condition == "3") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() # Isolate the Informative messaging conditions and conflate their outcomes
 
@@ -1544,7 +1600,7 @@ informative.conditions.summary <- hypothesis.test.data %>%
 social.conditions.summary <- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1552,11 +1608,11 @@ social.conditions.summary <- hypothesis.test.data %>%
   filter(condition == "4" |
            condition == "5") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() # Isolate the social messaging conditions and conflate their outcomes
 
@@ -1564,7 +1620,7 @@ social.conditions.summary <- hypothesis.test.data %>%
 personal.conditions.summary <- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1572,11 +1628,11 @@ personal.conditions.summary <- hypothesis.test.data %>%
   filter(condition == "6" |
            condition == "7") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() # Isolate the personal messaging conditions and conflate their outcomes
 ```
@@ -1622,7 +1678,7 @@ hyp2.1bayes<- contingencyTableBF(primary.outcome.table2, sampleType = "jointMult
 social.hyp2.relative<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1630,19 +1686,19 @@ social.hyp2.relative<- hypothesis.test.data %>%
   filter(condition == "4" |
            condition == "5") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
   mutate(proportion_social = LimitSetter/(LimitSetter + NoLimit)*100) %>%
-  select(proportion_social) %>%
+ dplyr::select(proportion_social) %>%
   print() 
 
 # Informative:
 informative.hyp2.relative<-  hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1650,12 +1706,12 @@ informative.hyp2.relative<-  hypothesis.test.data %>%
   filter(condition == "2" |
            condition == "3") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
  mutate(proportion_informative = LimitSetter/(LimitSetter + NoLimit)*100) %>%
- select(proportion_informative) %>%
+dplyr::select(proportion_informative) %>%
  print() 
   
 social.hyp2.relative %>%
@@ -1705,7 +1761,7 @@ hyp2.2bayes<- contingencyTableBF(primary.outcome.table3, sampleType = "jointMult
 personal.hyp2.relative<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1713,12 +1769,12 @@ personal.hyp2.relative<- hypothesis.test.data %>%
   filter(condition == "6" |
            condition == "7") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
   mutate(proportion_personal = LimitSetter/(LimitSetter + NoLimit)*100) %>%
-  select(proportion_personal) %>%
+ dplyr::select(proportion_personal) %>%
   print() 
 
 # Informative:
@@ -1784,7 +1840,7 @@ Compare differences in limit setting frequency between in-account (i.e., conditi
 email.conditions.summary<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1794,18 +1850,18 @@ email.conditions.summary<- hypothesis.test.data %>%
            condition != "5" & 
            condition != "7") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() 
 
 # Isolate the IN-ACCOUNT messaging conditions and conflate their outcomes:
 inaccount.conditions.summary<- hypothesis.test.data %>%
   group_by(condition, window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   filter(condition != "1" & 
@@ -1813,11 +1869,11 @@ inaccount.conditions.summary<- hypothesis.test.data %>%
            condition != "4" & 
            condition != "6") %>%
   as.data.frame() %>%
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>%
-  select(NoLimit,
+ dplyr::select(NoLimit,
          LimitSetter) %>%
   print() 
 
@@ -1860,7 +1916,7 @@ hyp3.bayes<- contingencyTableBF(primary.outcome.table5, sampleType = "jointMulti
 email.hyp3.relative<- hypothesis.test.data %>%
   group_by(condition, 
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   ungroup(LimitSetter,
@@ -1870,18 +1926,18 @@ email.hyp3.relative<- hypothesis.test.data %>%
            condition != "5" & 
            condition != "7") %>%
   as.data.frame() %>% 
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>% 
   mutate(proportion_email = LimitSetter/(LimitSetter + NoLimit)*100) %>%
-  select(proportion_email) %>%
+ dplyr::select(proportion_email) %>%
   print() 
 
 # IN-ACCOUNT:
 inaccount.hyp3.relative<- hypothesis.test.data %>%
   group_by(condition, window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   filter(condition != "1" & 
@@ -1889,12 +1945,12 @@ inaccount.hyp3.relative<- hypothesis.test.data %>%
            condition != "4" & 
            condition != "6") %>%
   as.data.frame() %>%
-  summarise(
+  dplyr::summarise(
     LimitSetter = sum(LimitSetter),
     NoLimit = sum(None)
   ) %>%
   mutate(proportion_inaccount = LimitSetter/(LimitSetter + NoLimit)*100) %>%
-  select(proportion_inaccount) %>%
+ dplyr::select(proportion_inaccount) %>%
   print() 
 
 inaccount.hyp3.relative %>%
@@ -1916,11 +1972,11 @@ primary.outcome.table6<- hypothesis.test.data %>%
   filter(condition != "1") %>%
   group_by(condition,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n()
   ) %>% pivot_wider(names_from = window_limit_setter, values_from = n) %>%
   as.data.frame() %>%
-  select(LimitSetter, 
+ dplyr::select(LimitSetter, 
          None) %>%
   print()
 ```
@@ -1964,7 +2020,7 @@ There have since been some changes to the pre-registered plan for this analysis 
 Make the data workable for the regression model:
 ```{r warnings = FALSE, message = FALSE}
 predictors.limitsetting.data<- hypothesis.test.data %>%
-  select(window_limit_setter,
+  dplyr::select(window_limit_setter,
          limit_setter_pre,
          operator,
          age,
@@ -1978,12 +2034,10 @@ predictors.limitsetting.data<- hypothesis.test.data %>%
   filter(operator != "4") 
 # Remove those from operator 4 as nobody set a limit within this group and including this group will result in the following error when running the regression model as it perfectly splits the group:
 # "glm.fit: fitted probabilities numerically 0 or 1 occurred"
-
 # For categorical variables, see which level is the reference group and which is the predicted/ compared with group:
 # contrasts(predictors.limitsetting.data$limit_setter_pre) # Being a previous limits setter is the predicted group
 # contrasts(predictors.limitsetting.data$gender) 
 # contrasts(predictors.limitsetting.data$operator) 
-
 predictors.limitsetting.data$window_limit_setter <-  as.factor(predictors.limitsetting.data$window_limit_setter) # Make the outcome variable a factor
 predictors.limitsetting.data$window_limit_setter <-  relevel(predictors.limitsetting.data$window_limit_setter, ref = "None") # Put the reference group as those who don't set limits so we can predict who does
 ```
@@ -2040,7 +2094,6 @@ Calculate standardised residuals to identify and remove outliers:
 # Calculate residuals and other model data:
 model.data <- augment(LG.predictors.limitsetting.2) %>% 
   mutate(index = 1:n()) 
-
 # See how many outliers they are in the data:
 model.data %>% 
   filter(abs(.std.resid) > 3 |
@@ -2065,7 +2118,6 @@ Getting an error messages when running the above Boxtidwell analysis. Run diagno
 ```{r warnings = FALSE, message = FALSE}
 # First check there are no NAs in the data:
 anyNA(predictors.limitsetting.data) # Nope
-
 # Additional solutions identified: convert the data to a data frame, remove values == 0, and convert the outcome variable to numeric:
 predictors.limitsetting.data.temp<- predictors.limitsetting.data %>%
   filter(betting_days_frequency_pre >= 1,
@@ -2077,19 +2129,18 @@ predictors.limitsetting.data.temp<- predictors.limitsetting.data %>%
                                         "1" = "LimitSetter",
                                         "2" = "None")) %>% 
   as.data.frame()
-
 predictors.limitsetting.data.temp$window_limit_setter_binary<- as.numeric(predictors.limitsetting.data.temp$window_limit_setter_binary)
 ```
 Now try and re-run boxTidwell analysis:
 ```{r warnings = FALSE, message = FALSE}
-boxTidwell(window_limit_setter_binary ~ age +
-              betting_days_frequency_pre +
-              average_daily_wager_pre +
-              betting_intensity_pre, 
-              other.x= ~window_limit_setter + gender + operator + limit_setter_pre + net_loss_pre + lost_last_bet + daily_wager_SD_pre, # variables to omit
-              data = predictors.limitsetting.data.temp)
+# boxTidwell(window_limit_setter_binary ~ age +
+#               betting_days_frequency_pre +
+#               average_daily_wager_pre +
+#               betting_intensity_pre, 
+#               other.x= ~window_limit_setter + gender + operator + limit_setter_pre + net_loss_pre + lost_last_bet + daily_wager_SD_pre, # variables to omit
+#               data = predictors.limitsetting.data.temp)
 ```
-The varibale "average_daily_wager_pre" is not linearly relaed to the logit of the DV. Let's take a look at the distribution of this variable:
+The variable "average_daily_wager_pre" is not linearly relaed to the logit of the DV. Let's take a look at the distribution of this variable:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
 hist(predictors.limitsetting.data.temp$average_daily_wager_pre)
 ```
@@ -2098,7 +2149,6 @@ hist(predictors.limitsetting.data.temp$average_daily_wager_pre)
 It highly skewed (positively). Let's transform this variable using the square root transformation which is suitable for positively skewed data:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
 average_daily_wager_pre_sqrt = sqrt(predictors.limitsetting.data.temp$average_daily_wager_pre)
-
 # Now plot the distribution of this variable again to see if it has changed:
 hist(average_daily_wager_pre_sqrt) 
 ```
@@ -2107,7 +2157,6 @@ hist(average_daily_wager_pre_sqrt)
 The data is still very heavily skewed. Let's try a stronger transformation. Cubed transformation:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center',}
 average_daily_wager_pre_cubed = sign(predictors.limitsetting.data.temp$average_daily_wager_pre)* abs(predictors.limitsetting.data.temp$average_daily_wager_pre)^(1/3) 
-
 # Again, plot the distribution of this variable again to see if it has changed:
 hist(average_daily_wager_pre_cubed)
 ```
@@ -2117,10 +2166,9 @@ This seems much better. Isolate this variable and the outcome variables so that 
 ```{r warnings = FALSE, message = FALSE}
 predictors.limitsetting.data.temp2 <- predictors.limitsetting.data.temp %>%
   mutate(average_daily_wager_pre_cuberoot = average_daily_wager_pre^(1/3)) %>%
-  select(window_limit_setter_binary,
+  dplyr::select(window_limit_setter_binary,
          average_daily_wager_pre_cuberoot)
 predictors.limitsetting.data.temp2$window_limit_setter_binary<- as.numeric(predictors.limitsetting.data.temp2$window_limit_setter_binary)
-
 # Rerun Box Tidwell analysis for the newly transformed variable:
 boxTidwell(window_limit_setter_binary ~
            average_daily_wager_pre_cuberoot,
@@ -2136,14 +2184,11 @@ Prepare the data:
 updated_model_data <- model.data %>% 
   filter(abs(.std.resid) < 3) %>%
   mutate(average_daily_wager_pre_cuberoot = average_daily_wager_pre^(1/3))  
-
 # ensure variables are in correct format:
 updated_model_data$operator<- as.factor(updated_model_data$operator)
-
 # Put the reference group as those who don't set limits so we can predict who does:
 updated_model_data$window_limit_setter <-  as.factor(updated_model_data$window_limit_setter) 
 updated_model_data$window_limit_setter <-  relevel(updated_model_data$window_limit_setter, ref = "None") 
-
 updated_model_data$limit_setter_pre <- as.factor(updated_model_data$limit_setter_pre)
 contrasts(updated_model_data$limit_setter_pre) # Being a previous limits setter is the predicted group
 ```
@@ -2164,16 +2209,13 @@ LG.predictors.limitsetting.final <- glm(window_limit_setter ~
                                       gender + 
                                       limit_setter_pre,
                                       data = updated_model_data, family = "binomial") 
-
 ```
 Calculate various summary figures for the model:
 ```{r warnings = FALSE, message = FALSE, result = 'asis'}
 # View summary of outcomes:
 summary(LG.predictors.limitsetting.final) 
-
 # Check variable inflation factors for evidence of multicollinearity:
 vif(LG.predictors.limitsetting.final)
-
 # View confidence intervals for the coefficient estimates:
 sumarisedCIs<- confint(LG.predictors.limitsetting.final) 
 kable(sumarisedCIs %>% 
@@ -2199,31 +2241,22 @@ kable(sumarisedORs %>%
 NagelkerkeR2<- NagelkerkeR2(LG.predictors.limitsetting.final) %>% 
   as.data.frame() %>%
   print()
-
 # N = The number of observations in which the model were fitted
 # R2 = Nagelkerke's R squared value
 # NOTE: R2 is calculate as a proportion here and so in the paper we have multiplied it by 100 to form a percentage value
-
 # Calculate overall p-value for model by comparing it with a null model:
 lgr.model<- anova(LG.predictors.limitsetting.final, 
       update(LG.predictors.limitsetting.final, ~1), # update here produces null model for comparison 
       test="Chisq")
-
 lgr.model
-
 lgr.model.ps<- lgr.model$`Pr(>Chi)` %>% as.matrix()
 lgr.model.p <- lgr.model.ps[2,]
-
 if(lgr.model.p <.001){print(".001")} else{print(lgr.model.p)}
-
 lgr.model.n <- nrow(updated_model_data)
-
 # Analysis of variance for individual terms (Wald's test):
 Anova(LG.predictors.limitsetting.final, type="II", test="Wald")
-
 # Test overall effect of gender:
 wald.test(b = coef(LG.predictors.limitsetting.final), Sigma = vcov(LG.predictors.limitsetting.final), Terms = 3:4)
-
 # Test overall effect of operator:
 wald.test(b = coef(LG.predictors.limitsetting.final), Sigma = vcov(LG.predictors.limitsetting.final), Terms = 5:6)
 ```
@@ -2231,10 +2264,10 @@ wald.test(b = coef(LG.predictors.limitsetting.final), Sigma = vcov(LG.predictors
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center', fig.height = 8, fig.width = 3.5}
 # Set seed so that labels are consistent in the plot:
 set.seed(200)
-
 Regressionplot <- ggstatsplot::ggcoefstats(LG.predictors.limitsetting.final,
                          vline.args = list(size = 1, color = "#56B4E9"),
                          ggstatsplot.layer = FALSE,
+                          exclude.intercept = TRUE, # hide the intercept
                          stats.label.args = list(size = 1.8, direction = "y"),) +
   scale_x_continuous(name = "Regression coefficient", limits = c(-3.2, 10), breaks = c(0, 5, 10, 15, 20, 25, 30)) +
   scale_y_discrete(name = "", labels = c("Operator 3",
@@ -2262,7 +2295,6 @@ Regressionplot <- ggstatsplot::ggcoefstats(LG.predictors.limitsetting.final,
 
 # View new plot:
 Regressionplot
-
 # Save Plot:
 ggsave("Figures/Regressionplot.pdf",
        width = 80,
@@ -2272,12 +2304,11 @@ ggsave("Figures/Regressionplot.pdf",
 ```
 <br><br>
 
-
 ## Comparisons of pre & post wagering activity between limit setters and non-limit setters
 
 Pre-registered definition of groups:
 
-- "When comparing the gambling behaviour of those who set a limit with those who do not  the former group are defined as those who set a limit within 5 days of receiving a message (Time 1 or 2,  depending on whether they set a limit at the former) and the latter group those who do not set a limit (regardless of whether they open messages sent to them). To prevent group sizes from being substantially uneven (only a small proportion of customers are expected to set limits), we will randomly select the same number of customers who set limits (n?) from the non-limit setting group. This will be achieved using the procedure described in Section 2.3.3 to randomly order participants, selecting the first n? customers. To ensure consistency between groups in relation to the length of time-periods in which behavioural data  are collected, for limit setters this period will be 90 days pre and post the day they set a limit and for non-limit setters this period will be 90 days pre and post the Time 1 message"
+- "When comparing the gambling behaviour of those who set a limit with those who do not  the former group are defined as those who set a limit within 5 days of receiving a message (Time 1 or 2,  depending on whether they set a limit at the former) and the latter group those who do not set a limit (regardless of whether they open messages sent to them). To prevent group sizes from being substantially uneven (only a small proportion of customers are expected to set limits), we will randomly dselect the same number of customers who set limits (n?) from the non-limit setting group. This will be achieved using the procedure described in Section 2.3.3 to randomly order participants, selecting the first n? customers. To ensure consistency between groups in relation to the length of time-periods in which behavioural data  are collected, for limit setters this period will be 90 days pre and post the day they set a limit and for non-limit setters this period will be 90 days pre and post the Time 1 message"
 
 #### Prepare data
 We can start with the data used for hypothesis testing as anyone excluded from those analyses will also be ineligible for inclusion in exploratory analyses. But we need to clean the data according to the additional specific eligibility criteria for this study. First we need to remove anyone self excluded or closed their account before two weeks post-message 1 (non-setters) and two weeks post-limit date (for limit setters). This will ensure there is sufficient wagering activity to perform analyses.
@@ -2297,7 +2328,7 @@ post.message.account.closers.nonsetters<- hypothesis.test.data %>%
   filter(date_account_closed >=  as.Date("2019-10-14")  &
            date_account_closed <=  as.Date("2019-10-28") &
            window_limit_setter == "None") %>%
-  select(date_account_closed,
+ dplyr::select(date_account_closed,
          self_exclusion_start_date,
          self_exclusion_finish_date,
          self_exclusion,
@@ -2316,7 +2347,7 @@ post.message.self.excluders.nonsetters<- hypothesis.test.data %>%
   filter(self_exclusion_start_date >=  as.Date("2019-10-14") &
            self_exclusion_start_date <=  as.Date("2019-10-28") &
            window_limit_setter == "None") %>%
-  select(self_exclusion_start_date,
+ dplyr::select(self_exclusion_start_date,
          self_exclusion_finish_date,
          self_exclusion,
          customerid,
@@ -2335,7 +2366,7 @@ post.message.extended.time.out.nonsetters<- hypothesis.test.data %>%
            timeout_start_date_post <=  as.Date("2019-10-28") &
            timeout_duration_post >= 76 &
            window_limit_setter == "None") %>%
-  select(timeout_duration_post,
+ dplyr::select(timeout_duration_post,
          timeout_start_date_post,
          timeout_finish_date_post,
          timeout_post,
@@ -2358,7 +2389,7 @@ post.message.account.closers.setters<- hypothesis.test.data %>%
   filter(date_account_closed >=  window_limit_date  &
            date_account_closed <=  post.limit.date &
            window_limit_setter == "LimitSetter") %>%
-  select(date_account_closed,
+ dplyr::select(date_account_closed,
          self_exclusion_start_date,
          self_exclusion_finish_date,
          self_exclusion,
@@ -2377,7 +2408,7 @@ post.message.self.excluders.setters<- hypothesis.test.data %>%
   filter(self_exclusion_start_date >=  window_limit_date  &
            self_exclusion_start_date <=  post.limit.date &
            window_limit_setter == "LimitSetter") %>%
-  select(self_exclusion_start_date,
+ dplyr::select(self_exclusion_start_date,
          self_exclusion_finish_date,
          self_exclusion,
          customerid,
@@ -2397,7 +2428,7 @@ post.message.extended.time.out.setters<- hypothesis.test.data %>%
            timeout_start_date_post <=  post.limit.date &
            window_limit_setter == "LimitSetter") %>%
   filter(timeout_duration_post >= 76) %>%
-  select(timeout_duration_post,
+ dplyr::select(timeout_duration_post,
          timeout_start_date_post,
          timeout_finish_date_post,
          timeout_post,
@@ -2418,7 +2449,7 @@ hypothesis.test.data %>% filter(limit_setter_post != "None") %>%
 344, roughly twice the number to set limits in just 10 days post-messages
 
 #### Filter dataset for pre-post wagering comparisons
-Now filter out all of the people do not meet the eligibility criteria for inclusion in these analyses and make a final dataset for use:
+Now filter out all of the people do not meet the eligibility criteria for inclusion in these analyses and make a final dataset for use.
 ```{r warnings = FALSE, message = FALSE}
 exploratory.wagering.analysis.data<- hypothesis.test.data %>%
   anti_join(post.message.account.closers.nonsetters, by = "customerid") %>%
@@ -2450,14 +2481,14 @@ How are these divided across the conditions?
 exploratory.wagering.analysis.data %>% 
   group_by(condition,
            window_limit_setter) %>%
-  summarise( n())
+  dplyr::summarise( n())
 ```
 How are these is divided across operators?
 ```{r warnings = FALSE, message = FALSE}
 exploratory.wagering.analysis.data %>% 
   group_by(operator,
            window_limit_setter) %>%
-  summarise( n())
+  dplyr::summarise( n())
 ```
 
 #### Randomly select non-limit setters
@@ -2473,14 +2504,14 @@ random.sample.controls<-exploratory.wagering.analysis.data %>%
   ungroup() %>% 
   mutate(n = c(100, 18, 35)) %>% # the number of limit setters from operator 1, 2 and 3 respectively.
   mutate(samp = map2(data, n, sample_n)) %>% 
-  select(-data) %>%
+ dplyr::select(-data) %>%
   unnest(samp)
 ```
 Check this has randomly sampled the correct number of non-setters per operator:
 ```{r warnings = FALSE, message = FALSE}
 random.sample.controls %>% 
   group_by(operator) %>%
-  summarise( n())
+  dplyr::summarise( n())
 ```
 Merge the two datasets:
 ```{r warnings = FALSE, message = FALSE}
@@ -2491,7 +2522,7 @@ wager.comaprison.data<- exploratory.wagering.analysis.data %>%
 # Check this has joined correctly and there are an equal number in each group: 
 wager.comaprison.data %>% 
   group_by(window_limit_setter) %>%
-  summarise( n())
+  dplyr::summarise( n())
 
 # Make the primary grouping variable a factor for the following analyses:
 wager.comaprison.data$window_limit_setter <- as.factor(wager.comaprison.data$window_limit_setter)
@@ -2508,7 +2539,7 @@ ave.daily.wager.comparison<- wager.comaprison.data %>%
                  "average_daily_wager_post"), 
                names_to = "Period",
                values_to = "Average_daily_wager") %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          window_limit_setter, 
          average_daily_wager_differencescore,
          Period, 
@@ -2523,7 +2554,7 @@ Identify outliers using pre-registered method and see how many cases this would 
 ave.daily.wager.comparison.outliers<- ave.daily.wager.comparison %>%
   filter(ave_daily_wager_zscore >= 3.29 |
            ave_daily_wager_zscore <= -3.29) %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          Period,
          ave_daily_wager_zscore) %>%
   ungroup() %>%
@@ -2544,7 +2575,6 @@ ave.daily.wager.comparison.sansoutliers<- ave.daily.wager.comparison %>%
   mutate(Period = fct_recode(Period,
                                  "Pre-message" = "average_daily_wager_pre",
                                  "Post-message" = "average_daily_wager_post")) %>%
-  
   mutate(Group = fct_recode(window_limit_setter,
                                  "Limit
                             setters" = "LimitSetter",
@@ -2575,7 +2605,7 @@ Group means, SDs, and medians pre and post-message:
 kable(ave.daily.wager.comparison.sansoutliers %>%
   group_by(Period,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n(),
     mean = mean(Average_daily_wager),
     sd = sd(Average_daily_wager),
@@ -2637,7 +2667,7 @@ ave.daily.wager.comparison.sansoutliers.ANCOVA<- ave.daily.wager.comparison.sans
 
 # Check there are 296 consumers remaining: 
 ave.daily.wager.comparison.sansoutliers.ANCOVA %>% 
-  summarise(n_distinct(customerid)) 
+  dplyr::summarise(n_distinct(customerid)) 
 ```
 Next, check the statical assumptions are met
 <br>
@@ -2693,14 +2723,14 @@ ASSUMPTION 4 NOT MET: non-normality of residuals
 
 ##### Assumption 5: homogeneity of variance:
 ```{r warnings = FALSE, message = FALSE}
-norm.model1.metrics %>% levene_test(.resid ~ window_limit_setter)
+leveneTest(.resid~window_limit_setter, center = mean, data = norm.model1.metrics)
 ```
-ASSUMPTION 5 NOT MET: non-homogenity of residuals, sig. Levene's test
+ASSUMPTION 5 MET: homogeneity of residuals, non-sig. Levene's test
 <br>
 
 Most parametric have been violated so need to use another approach. Use Robust ANCOVA instead. Here's a useful link for info on this technique that was used to guide the ROBUST ANCOVA analysis performed here:
 
-- https://cran.r-project.org/web/packages/WRS2/vignettes/WRS2.pdf
+- https://cran.r-project.org/web/packages/WRS2/vignettes/WRS2.jpeg
 
 
 #### ROBUST ANCOVA: Average daily wager
@@ -2941,7 +2971,7 @@ Figure4.a
 
 Save plot:
 ```{r warnings = FALSE, message = FALSE}
-ggsave("Figures/Figure4.a.pdf",
+ggsave("Figures/Figure4.a.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -2999,7 +3029,7 @@ Figure4truncated.a
 
 Save plot:
 ```{r warnings = FALSE, message = FALSE}
-ggsave("Figures/Figure4truncated.a.pdf",
+ggsave("Figures/Figure4truncated.a.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -3030,7 +3060,7 @@ First create a workable dataset for this comparison, including the creation of z
                   "daily_wager_SD_post"), 
                 names_to = "Period",
                 values_to = "SD_of_ave_daily_wager") %>%
-   select(customerid, 
+  dplyr::select(customerid, 
           window_limit_setter, 
           Period, 
           SD_of_ave_daily_wager,
@@ -3045,7 +3075,7 @@ Identify outliers using pre-registered method and see how many cases this would 
 sd.of.ave.daily.wager.comparison.outliers<-  sd.of.ave.daily.wager.comparison %>%
    filter(SD_of_ave_daily_wager_zscore >= 3.29 |
             SD_of_ave_daily_wager_zscore <= -3.29) %>%
-   select(customerid, 
+  dplyr::select(customerid, 
           Period,
           SD_of_ave_daily_wager_zscore,
           SD_of_ave_daily_wager) %>%
@@ -3092,7 +3122,7 @@ Group means, SDs, and medians pre and post-message:
  kable(sd.of.ave.daily.wager.comparison.sansoutliers %>%
    group_by(Period,
             window_limit_setter) %>%
-   summarise(
+   dplyr::summarise(
      n(),
      mean = mean(SD_of_ave_daily_wager),
      sd = sd(SD_of_ave_daily_wager),
@@ -3187,7 +3217,7 @@ ASSUMPTION 3 NOT MET: Interaction term significant
  norm.model2<- lm(sd_av_daily_wager_differencescore ~ SD_of_ave_daily_wager + window_limit_setter, data = sd.of.ave.daily.wager.comparison.sansoutliers.ANCOVA)
  
 # Make residuals available:
- norm.model2.metrics <- augment(norm.model1) 
+ norm.model2.metrics <- augment(norm.model2) 
 
 # Run Shapiro Wilk's test on residuals:
  shapiro_test(norm.model2.metrics$.resid)
@@ -3196,7 +3226,7 @@ ASSUMPTION 4 NOT MET: non-normality of residuals
  
 ##### Assumption 5: homogeneity of variance:
 ```{r warnings = FALSE, message = FALSE}
- norm.model2.metrics %>% levene_test(.resid ~ window_limit_setter)
+leveneTest(.resid~window_limit_setter, center = mean, data = norm.model2.metrics)
 ```
 ASSUMPTION 5 NOT MET: non-homogenity of residuals, sig. Levene's test
  
@@ -3296,7 +3326,7 @@ Create plot (Figure4b):
 
 Save plot:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
- ggsave("Figures/Figure4.b.pdf",
+ ggsave("Figures/Figure4.b.jpeg",
         width = 170,
         height = 130,
         units = c("mm"),
@@ -3350,7 +3380,7 @@ Create a truncated version:
 
 Save plot:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
- ggsave("Figures/Figure4truncated.b.pdf",
+ ggsave("Figures/Figure4truncated.b.jpeg",
         width = 170,
         height = 130,
         units = c("mm"),
@@ -3368,7 +3398,7 @@ net.loss.comparison<- wager.comaprison.data %>%
                  "net_loss_post"), 
                names_to = "Period",
                values_to = "net_loss") %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          window_limit_setter, 
          Period, 
          net_loss,
@@ -3396,18 +3426,19 @@ This outcome will also be affected by people using timeouts and self-exclusion a
  # First, identify this cohort:
 net.loss.comparison.ineligible <- net.loss.comparison  %>%
    ungroup() %>%
-   filter(timeout_pre != "None" & 
-            timeout_duration_pre >14 &
-            timeout_start_date_pre >= as.Date("2019-07-16") & 
-            timeout_start_date_pre <= as.Date("2020-12-29") |
-            self_exclusion != "None" &
-            self_exclusion_start_date >= as.Date("2019-07-16") & 
-            self_exclusion_start_date <= as.Date("2020-12-29") | # This is 14 days prior to the 90 day post message period....
-            timeout_post  != "None" & #  # (If anyone excluded after this date then it was for less than 2 weeks of the period)
-            timeout_duration_post >=14 &
-            timeout_start_date_post >= as.Date("2019-07-16") & 
-            timeout_start_date_post <= as.Date("2020-12-29")) %>% 
-   select(customerid, 
+# The below code would excluded any customers with a break of ≥ 14 days either side of messages due to account closures or CPT use, Wh=wich is originally from these analyses but we changed this in in response to reviewer comments:
+   # filter(timeout_pre != "None" & 
+   #          timeout_duration_pre >14 &
+   #          timeout_start_date_pre >= as.Date("2019-07-16") & 
+   #          timeout_start_date_pre <= as.Date("2020-12-29") |
+   #          self_exclusion != "None" &
+   #          self_exclusion_start_date >= as.Date("2019-07-16") & 
+   #          self_exclusion_start_date <= as.Date("2020-12-29") | # This is 14 days prior to the 90 day post message period....
+   #          timeout_post  != "None" & #  # (If anyone excluded after this date then it was for less than 2 weeks of the period)
+   #          timeout_duration_post >=14 &
+   #          timeout_start_date_post >= as.Date("2019-07-16") & 
+   #          timeout_start_date_post <= as.Date("2020-12-29")) %>% 
+  dplyr::select(customerid, 
           window_limit_setter, 
           self_exclusion_start_date,
           timeout_start_date_pre,
@@ -3434,7 +3465,7 @@ net.loss.comparison.outliers<-  net.loss.comparison %>%
   filter(net_loss_zscore >= 3.29 |
            net_loss_zscore <= -3.29) %>%
   ungroup() %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          Period,
          net_loss_zscore,
          net_loss,
@@ -3451,7 +3482,7 @@ Create a dataset that excludes participants who are in eligible for going on tim
 ave.daily.wager.comparison$Period<- as.factor(ave.daily.wager.comparison$Period) # Make a variable in factor to change the level names
 
 net.loss.comparison.sansoutliers<- net.loss.comparison %>%
-  anti_join(net.loss.comparison.ineligible, by = "customerid") %>% 
+  # anti_join(net.loss.comparison.ineligible, by = "customerid") %>% 
   anti_join(net.loss.comparison.outliers, by = "customerid") %>% 
   ungroup() %>%
   mutate(Period = fct_recode(Period,
@@ -3487,7 +3518,7 @@ Group means, SDs, and medians pre and post-message:
 kable(net.loss.comparison.sansoutliers %>%
   group_by(Period,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n(),
     mean = mean(net_loss),
     sd = sd(net_loss),
@@ -3583,7 +3614,7 @@ ASSUMPTION 3 MET: Interaction term NOT significant
 # Compute model to calculate residuals:
 norm.model3<- lm(net_loss_differencescore ~ net_loss + window_limit_setter, data = net.loss.comparison.sansoutliers.ANCOVA)
 # Make residuals available:
-norm.model3.metrics <- augment(norm.model1) 
+norm.model3.metrics <- augment(norm.model3) 
 # Run Shaprio wilks test on residuals:
 shapiro_test(norm.model3.metrics$.resid)
 ```
@@ -3591,7 +3622,7 @@ ASSUMPTION 4 NOT MET: non-normality of residuals
 
 ##### Assumption 5: homogeneity of variance:
 ```{r warnings = FALSE, message = FALSE}
-norm.model3.metrics %>% levene_test(.resid ~ window_limit_setter)
+leveneTest(.resid~window_limit_setter, center = mean, data = norm.model3.metrics)
 ```
 ASSUMPTION 5 NOT MET: non-homogeneity of residuals, sig. Levene's test
 
@@ -3599,14 +3630,15 @@ ASSUMPTION 5 NOT MET: non-homogeneity of residuals, sig. Levene's test
 No need to remove outliers here so lets make the original dataset suitable for this analysis:
 ```{r warnings = FALSE, message = FALSE}
 net.loss.comparison.data.ANCOVA<- net.loss.comparison %>%
-  anti_join(net.loss.comparison.ineligible, by = "customerid") %>% # Remove ineligible consumers
+  # anti_join(net.loss.comparison.ineligible, by = "customerid") %>% # Remove ineligible consumers
   filter(Period == "net_loss_pre")
 ```
 Run ROBUST ANCOVA:
 ```{r warnings = FALSE, message = FALSE}
 set.seed(102)
+
 Robust.ANCOVA.net.loss <- ancova(net_loss_differencescore ~ net_loss + window_limit_setter, 
-                                     data = net.loss.comparison.data.ANCOVA)
+data = net.loss.comparison.data.ANCOVA)
 
 Robust.ANCOVA.net.loss
 
@@ -3691,7 +3723,7 @@ Figure4.c
 ```
 Save Plot:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
-ggsave("Figures/Figure4.c.pdf",
+ggsave("Figures/Figure4.c.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -3744,7 +3776,7 @@ Figure4truncated.c
 ```
 Save plot:
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center'}
-ggsave("Figures/Figure4truncated.c.pdf",
+ggsave("Figures/Figure4truncated.c.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -3761,7 +3793,7 @@ Figure4 <- Figure4.a/
   Figure4.b/
   # (Figure4.d | Figure4.e)/
   Figure4.c +
-  # plot_annotation(tag_levels = 'a') +
+  plot_annotation(tag_levels = 'A') +
   plot_layout(guides = 'collect') &           
 # annotate("text", x = 1.26:2.26, y = 730,# Annotations for plot 4.a
 #          label = c("Mean difference between periods = $-211.5
@@ -3786,7 +3818,7 @@ Figure4 <- Figure4.a/
   theme(plot.margin = unit(c(-.5,.1,.2,-2), "cm"))&
   # theme(plot.title = element_text(hjust = .85, vjust = -1)) &
   theme(legend.position = "top",
-        legend.text = element_text( color="black", size=7, face="plain", family = "Poppins"),
+        legend.text = element_text(color="black", size=7, face="plain", family = "Poppins"),
         legend.title=element_text(size=9))
 
 # View new plot:
@@ -3794,7 +3826,7 @@ Figure4
 ```
 Save plot:
 ```{r warnings = FALSE, message = FALSE}
-ggsave("Figures/Figure4.pdf",
+ggsave("Figures/Figure4.jpeg",
   width = 150,
   height = 180,
   units = c("mm"),
@@ -3833,7 +3865,7 @@ plot_annotation(title = '') &
   theme(plot.margin = unit(c(-.5,.1,.2,-2), "cm"))&
   # theme(plot.title = element_text(hjust = .85, vjust = -1)) &
   theme(legend.position = "top",
-        legend.text = element_text( color="black", size=7, face="plain", family = "Poppins"),
+        legend.text = element_text(color="black", size=7, face="plain", family = "Poppins"),
         legend.title=element_text(size=9))
 
 # View new plot:
@@ -3848,7 +3880,13 @@ ggsave("Figures/Figure4truncated.pdf",
        dpi = 600
 )
 
-ggsave("Figures/Figure4preprint.pdf",
+ggsave("Figures/Figure4truncated.jpeg",
+       width = 150,
+       height = 180,
+       units = c("mm"),
+       dpi = 600
+)
+ggsave("Figures/Figure4preprint.jpeg",
        width = 90,
        height = 180,
        units = c("mm"),
@@ -3866,7 +3904,7 @@ betting.frequency.comparison<- wager.comaprison.data %>%
                  "betting_days_frequency_post"), 
                names_to = "Period",
                values_to = "betting_frequency") %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          window_limit_setter, 
          Period, 
          betting_frequency,
@@ -3888,36 +3926,36 @@ betting.frequency.comparison<- wager.comaprison.data %>%
 
 This outcome will be affected by people using timeouts and self-exclusion and so we need to remove these from sample. Let's remove anyone who went on a time out of more than 2 weeks either side of messages:
 ```{r warnings = FALSE, message = FALSE}
-as.Date("2020-10-14") + 90
-as.Date("2021-01-12") - 14 
-
-# First, identify this cohort:
-betting.frequency.comparison.ineligible <- betting.frequency.comparison  %>%
-  ungroup() %>%
-  filter(timeout_pre != "None" & 
-           timeout_duration_pre >14 &
-           timeout_start_date_pre >= as.Date("2019-07-16") & 
-           timeout_start_date_pre <= as.Date("2020-12-29") |
-           self_exclusion != "None" &
-           self_exclusion_start_date >= as.Date("2019-07-16") & 
-           self_exclusion_start_date <= as.Date("2020-12-29") | # This is 14 days prior to the 90 day post message period....
-           timeout_post  != "None" & #  # (If anyone excluded after this date then it was for less than 2 weeks of the period)
-           timeout_duration_post >=14 &
-           timeout_start_date_post >= as.Date("2019-07-16") & 
-           timeout_start_date_post <= as.Date("2020-12-29")) %>% 
-  select(customerid, 
-         window_limit_setter, 
-         self_exclusion_start_date,
-         timeout_start_date_pre,
-         timeout_finish_date_pre,
-         timeout_duration_pre,
-         timeout_duration_post,
-         timeout_start_date_post,
-         timeout_start_date_post,
-         timeout_post) %>%
-  distinct(customerid, .keep_all = TRUE) 
-
-nrow(betting.frequency.comparison.ineligible)
+# as.Date("2020-10-14") + 90
+# as.Date("2021-01-12") - 14 
+# 
+# # First, identify this cohort:
+# betting.frequency.comparison.ineligible <- betting.frequency.comparison  %>%
+#   ungroup() %>%
+#   # filter(timeout_pre != "None" & 
+#   #          timeout_duration_pre >14 &
+#   #          timeout_start_date_pre >= as.Date("2019-07-16") & 
+#   #          timeout_start_date_pre <= as.Date("2020-12-29") |
+#   #          self_exclusion != "None" &
+#   #          self_exclusion_start_date >= as.Date("2019-07-16") & 
+#   #          self_exclusion_start_date <= as.Date("2020-12-29") | # This is 14 days prior to the 90 day post message period....
+#   #          timeout_post  != "None" & #  # (If anyone excluded after this date then it was for less than 2 weeks of the period)
+#   #          timeout_duration_post >=14 &
+#   #          timeout_start_date_post >= as.Date("2019-07-16") & 
+#   #          timeout_start_date_post <= as.Date("2020-12-29")) %>% 
+#  dplyr::select(customerid, 
+#          window_limit_setter, 
+#          self_exclusion_start_date,
+#          timeout_start_date_pre,
+#          timeout_finish_date_pre,
+#          timeout_duration_pre,
+#          timeout_duration_post,
+#          timeout_start_date_post,
+#          timeout_start_date_post,
+#          timeout_post) %>%
+#   distinct(customerid, .keep_all = TRUE) 
+# 
+# nrow(betting.frequency.comparison.ineligible)
 ```
 Interestingly, this will exclude 21 people:
 
@@ -3931,7 +3969,7 @@ Identify outliers using pre-registered method and see how many cases this would 
 betting.frequency.comparison.outliers<-  betting.frequency.comparison %>%
   filter(betting_frequency_zscore >= 3.29 |
            betting_frequency_zscore <= -3.29) %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          Period,
          betting_frequency_zscore,
          betting_frequency)
@@ -3944,10 +3982,10 @@ nrow(betting.frequency.comparison.outliers)
 Create a dataset that excludes participants who are in eligible for going on timeouts or self excluding and these outliers and then make all of the common column names and value names tidy for future plots:
 ```{r warnings = FALSE, message = FALSE}
 betting.frequency.comparison.sansoutliers<- betting.frequency.comparison %>%
-  anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% 
+  # anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% 
   anti_join(betting.frequency.comparison.outliers, by = "customerid") %>% 
   ungroup() %>%
-  rename(Period1 = Period) %>%
+  dplyr::rename(Period1 = Period) %>%
   mutate(Period = fct_recode(Period1,
                              "Pre-message" = "betting_days_frequency_pre",
                              "Post-message" = "betting_days_frequency_post")) %>%
@@ -3981,7 +4019,7 @@ Group means, SDs, and medians pre and post-message:
 kable(betting.frequency.comparison.sansoutliers %>%
   group_by(Period,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n(),
     mean = mean(betting_frequency),
     sd = sd(betting_frequency),
@@ -4076,7 +4114,7 @@ ASSUMPTION 3 NOT MET: Interaction term significant
 norm.model4<- lm(betting_frequency_differencescore ~ betting_frequency + window_limit_setter, data = betting.frequency.comparison.sansoutliers.ANCOVA)
 
 # Make residuals available:
-norm.model4.metrics <- augment(norm.model1) 
+norm.model4.metrics <- augment(norm.model4) 
 
 # Run Shapiro Wilk's test on residuals:
 shapiro_test(norm.model4.metrics$.resid)
@@ -4085,15 +4123,16 @@ ASSUMPTION 4 NOT MET: non-normality of residuals
 
 ##### Assumption 5: homogeneity of variance:
 ```{r warnings = FALSE, message = FALSE}
-norm.model4.metrics %>% levene_test(.resid ~ window_limit_setter)
+
+leveneTest(.resid~window_limit_setter, center = mean, data = norm.model4.metrics)
 ```
-ASSUMPTION 5 NOT MET: non-homogenity of residuals, sig. Levene's test
+ASSUMPTION 5 MET: homogenity of residuals, non-sig. Levene's test
 
 #### ROBUST ANCOVA: Betting frequency
-No need to remove outliers here so lets make the orginal dataset suitable for this analysis:
+No need to remove outliers here so lets make the original dataset suitable for this analysis:
 ```{r warnings = FALSE, message = FALSE}
 betting.frequency.comparison.data.ANCOVA<- betting.frequency.comparison %>%
-  anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% # Remove ineligible consumers
+  # anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% # Remove ineligible consumers
   filter(Period == "betting_days_frequency_pre")
 ```
 
@@ -4187,7 +4226,7 @@ Figure5.a
 ```
 Save plot:
 ```{r warnings = FALSE, message = FALSE}
-ggsave("Figures/Figure5.a.pdf",
+ggsave("Figures/Figure5.a.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -4206,7 +4245,7 @@ betting.intensity.comparison<- wager.comaprison.data %>%
                  "betting_intensity_post"), 
                names_to = "Period",
                values_to = "betting_intensity") %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          window_limit_setter, 
          Period, 
          betting_intensity,
@@ -4246,7 +4285,7 @@ Identify outliers using pre-registered method and see how many cases this would 
 betting.intensity.comparison.outliers<-  betting.intensity.comparison %>%
   filter(betting_intensity_zscore >= 3.29 |
            betting_intensity_zscore <= -3.29) %>%
-  select(customerid, 
+ dplyr::select(customerid, 
          Period,
          betting_intensity_zscore,
          betting_intensity) %>%
@@ -4263,10 +4302,10 @@ Create a dataset that excludes participants who are in eligible for going on tim
 betting.intensity.comparison$Period<- as.factor(betting.intensity.comparison$Period) # Make variable a factor to change the level names
 
 betting.intensity.comparison.sansoutliers<- betting.intensity.comparison %>%
-  anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% 
+  # anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% 
   anti_join(betting.intensity.comparison.outliers, by = "customerid") %>% 
   ungroup() %>%
-  rename(Period1 = Period) %>%
+  dplyr::rename(Period1 = Period) %>%
   mutate(Period = fct_recode(Period1,
                              "Pre-message" = "betting_intensity_pre",
                              "Post-message" = "betting_intensity_post")) %>%
@@ -4278,8 +4317,8 @@ betting.intensity.comparison.sansoutliers<- betting.intensity.comparison %>%
 
 Note: One of the outliers for comparison is already excluded for being on timeout/closing account/Self exclusion. This is calculated using the following code:
 ```{r warnings = FALSE, message = FALSE, results = FALSE}
-betting.intensity.comparison.outliers %>%
-  anti_join(betting.frequency.comparison.ineligible, by = "customerid")
+# betting.intensity.comparison.outliers %>%
+#   anti_join(betting.frequency.comparison.ineligible, by = "customerid")
 ```
 Create some summary data for this comparison.
 <br>
@@ -4306,7 +4345,7 @@ Group means, SDs, and medians pre and post-message:
 kable(betting.intensity.comparison.sansoutliers %>%
   group_by(Period,
            window_limit_setter) %>%
-  summarise(
+  dplyr::summarise(
     n = n(),
     mean = mean(betting_intensity),
     sd = sd(betting_intensity),
@@ -4401,7 +4440,7 @@ ASSUMPTION 3 NOT MET: Interaction term significant
 # Compute model to calculate residuals:
 norm.model5<- lm(betting_intensity_differencescore ~ betting_intensity + window_limit_setter, data = betting.intensity.comparison.sansoutliers.ANCOVA)
 # Make residuals available:
-norm.model5.metrics <- augment(norm.model1) 
+norm.model5.metrics <- augment(norm.model5) 
 # Run Shaprio wilks test on residuals:
 shapiro_test(norm.model5.metrics$.resid)
 ```
@@ -4409,15 +4448,15 @@ ASSUMPTION 4 NOT MET: non-normality of residuals
 
 ##### Assumption 5: homogeneity of variance:
 ```{r warnings = FALSE, message = FALSE}
-norm.model5.metrics %>% levene_test(.resid ~ window_limit_setter)
+leveneTest(.resid~window_limit_setter, center = mean, data = norm.model5.metrics)
 ```
 ASSUMPTION 5 NOT MET: non-homogeneity of residuals, sig. Levene's test
 
-#### ROBUST ANCOVA: Betting intensity
+Hi#### ROBUST ANCOVA: Betting intensity
 No need to remove outliers here so lets make the original dataset suitable for this analysis:
 ```{r warnings = FALSE, message = FALSE}
 betting.intensity.comparison.data.ANCOVA<- betting.intensity.comparison %>%
-  anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% # Remove ineligible consumers
+  # anti_join(betting.frequency.comparison.ineligible, by = "customerid") %>% # Remove ineligible consumers
   filter(Period == "betting_intensity_pre")
 ```
 
@@ -4514,8 +4553,8 @@ Figure5.b
 ```
 Save plot:
 ```{r warnings = FALSE, message = FALSE}
-pdf("Figure5.b.pdf")
-ggsave("Figures/Figure5.b.pdf",
+jpeg("Figure5.b.jpeg")
+ggsave("Figures/Figure5.b.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -4573,7 +4612,7 @@ This plot has been capped at 60 to enable proper visualisation.
 
 Save plot:
 ```{r warnings = FALSE, message = FALSE}
-ggsave("Figures/Figure5truncated.b.pdf",
+ggsave("Figures/Figure5truncated.b.jpeg",
        width = 170,
        height = 130,
        units = c("mm"),
@@ -4586,8 +4625,8 @@ ggsave("Figures/Figure5truncated.b.pdf",
 ##### Truncated plots
 ```{r warnings = FALSE, message = FALSE, fig.align = 'center', fig.height = 6}
 Figure5 <- Figure5.a/
-  Figure5truncated.b + 
-  # plot_annotation(tag_levels = 'a') +
+  Figure5truncated.b +
+  plot_annotation(tag_levels = 'A') +
   plot_layout(guides = 'collect')&
   plot_annotation(title = '') &
   theme(plot.margin = unit(c(-.5,.1,.2,-2), "cm")) &
@@ -4626,7 +4665,7 @@ ggsave("Figures/Figure5.pdf",
               dpi = 600
        )
 
-ggsave("Figures/Figure5preprint.pdf",
+ggsave("Figures/Figure5preprint.jpeg",
        width = 90,
        height = 120,
        units = c("mm"),
@@ -4634,7 +4673,1309 @@ ggsave("Figures/Figure5preprint.pdf",
 )
 ```
 
-#### Save final workspace envrionment for use in manuscript:
+# --------------------------------------------------------------------------------
+
+<center>
+# Post-peer review additions to analyses & manuscript
+</center>
+
+After submitting our manuscript to the journal *Addiction* we were asked to make multiple changes to the manuscript. Each new analysis and its outcome are documented here. All the code above this section remains exactly as it was pre-submission other than our exclusions of customers: based on reviewer suggestions we retained anyone who used a timeout or self-exclusion in the messaging window, but removed anyone who was not active for the entire messaging window because they were on a timeout or self- excluded, or because they closed their account prior to receiving the first message. 
+<br>
+
+## Power analyses
+
+We were asked to change our confirmatory hypothesis tests from chi-squared analyses (reported abvoe) to logistic regressions and adjust our power calculations accordingly, as suggested by the statistical editor. We performed our power analysis using G*Power software, but decided to reported our revised input parameters for the power analysis in full here for increased transparency and reproducibility.
+
+### Hypothesis 1
+H$^1$:Online wagerers in the messaging conditions will be more likely than controls (i.e., those who do not receive a message) to set a deposit limit within five days of messaging (the same time period used by BIT, 2018).
+ 
+We explain all of the input parameters for this first power analysis below before presenting the G*Power protocol of power analysis (i.e., the output from the calculation provided by the software) but do not do this hereafter. 
+
+- Tail(s): Two
+- Pr(Y=1|X=1) H1: 0.1 (probability of limit setting limits with X = 1 (x = predictor, or messages in this case [1 = limit, 0 = no limit]) under H1 is p2 = 0.025[2.5%])
+- Pr(Y=1|X=1) H0: 0.05 (Probability of limit setting limits with X = 1 under H0 is p2 = 0.005[0.05% to account for random limits set not prompted by messages])
+- The above two values can be used to calculate a proposed **odds ratio**, which here would be [i.e., (0.025/0.975)/(0.005/0.995) **= 5.10**)
+- Assuming the above proportions, our anticipated Odds ratio is
+- $\alpha$ err prob: 0.05
+- Power (1-$\beta$ err prob): 0.95 
+- R2 other X: 0
+- X distribution: Binomial
+- X parm $\pi$: proportion in the intervention group (X = 1). For this we need to compute the relative proportion of the sample that are in the messaging groups so let's do that below. 
+
+Compute proportions for X parm $\pi$ value:
+```{r}
+# Messages versus controls:
+hypothesis.test.data %>% 
+  group_by(condition) %>% 
+  dplyr::summarise(n= n()) %>% 
+  mutate(group = case_when(condition >1 ~ "Messages", 
+                           condition == 1  ~ "Control")) %>% 
+  group_by(group) %>% 
+  dplyr::summarise(sum = sum(n)) %>% 
+  mutate(Proportion = sum/nrow(hypothesis.test.data)*100) %>% 
+  print()
+
+```
+
+**G Power protocol of power analysis:**
+
+- **Options:** Large sample z-Test, Demidenko (2007) with var corr 
+- **Analysis:**	A priori: Compute required sample size 
+- Input: Tail(s) =	Two
+-	Pr(Y=1|X=1) H1 = 0.025
+-	Pr(Y=1|X=1) H0 = 0.005
+-	$\alpha$ err prob	=	0.05
+-	Power (1--$\beta$ err prob) =	0.95
+-	R$^2$ other X =	0
+-	X distribution =	Binomial
+-	X parm $\pi$ =	0.856
+- **Output:**	Critical z = 1.9599640
+- Total sample size	=	4768
+- Actual power =	0.9500135
+			
+### Hypothesis 2
+
+H$^2$: Online wagerers who receive positive social perception messages will be most likely to set a deposit limit within five days of messaging[^1], followed by those who receive positive personal perception messages, and then those who receive informative messages.
+
+2.1: Social messages (i.e., conditions4 & 5) vs. Informative messages (i.e, conditions 2 & 3):
+
+- Odds ratio: (0.035/0.965)/(0.015/0.985) = 2.38
+
+Compute proportions for X parm $\pi$ value:
+
+```{r}
+# Social versus informative:
+hypothesis.test.data %>% 
+  group_by(condition) %>% 
+  dplyr::summarise(n= n()) %>% 
+  mutate(group = case_when(condition == 4 ~ "Social", 
+                           condition == 5 ~ "Social", 
+                           condition == 2  ~ "Informative",
+                           condition == 3  ~ "Informative")) %>% 
+  group_by(group) %>% 
+  dplyr::summarise(sum = sum(n)) %>% 
+  pivot_wider(names_from = group,
+              values_from = sum) %>% 
+  mutate(total = Informative + Social) %>% 
+ mutate(Proportion.social.inform = (Social/total)*100) 
+```
+**G Power protocol & outcomes for power analysis:**
+
+- **Options:** Large sample z-Test, Demidenko (2007) with var corr 
+- **Analysis:**	A priori: Compute required sample size 
+- Input: Tail(s) =	Two
+-	Pr(Y=1|X=1) H1 = 0.035
+-	Pr(Y=1|X=1) H0 = 0.015
+-	$\alpha$ err prob	=	0.05
+-	Power (1--$\beta$ err prob) =	0.95
+-	R$^2$ other X =	0
+-	X distribution =	Binomial
+-	X parm $\pi$ =	0.52
+- **Output:**	Critical z = 1.9599640
+-	Total sample size	=	3169
+-	Actual power =	0.9500379
+	
+2.2: Personal messages (i.e., conditions  6 & 7) versus Informative messages (i.e, conditions 2 & 3):
+
+- Odds ratio: (0.025/0.975)/(0.015/0.985) = 1.68
+
+Compute proportions for X parm $\pi$ value:
+
+```{r}
+# Personal versus informative:
+hypothesis.test.data %>% 
+  group_by(condition) %>% 
+  dplyr::summarise(n= n()) %>% 
+  mutate(group = case_when(condition == 6 ~ "Personal", 
+                           condition == 7 ~ "Personal", 
+                           condition == 2  ~ "Informative",
+                           condition == 3  ~ "Informative")) %>% 
+  group_by(group) %>% 
+  dplyr::summarise(sum = sum(n)) %>% 
+  pivot_wider(names_from = group,
+              values_from = sum) %>% 
+  mutate(total = Informative + Personal) %>% 
+ mutate(Proportion.personal.inform = (Personal/total)*100) 
+```
+**G Power protocol & outcomes for power analysis:**
+
+- **Options:** Large sample z-Test, Demidenko (2007) with var corr 
+- **Analysis:**	A priori: Compute required sample size 
+- Input: Tail(s) = Two
+-	Pr(Y=1|X=1) H1 = 0.025
+-	Pr(Y=1|X=1) H0 = 0.015
+-	$\alpha$ err prob	=	0.05
+-	Power (1--$\beta$ err prob) =	0.95
+-	R$^2$ other X =	0
+-	X distribution =	Binomial
+-	X parm $\pi$ =	0.498
+- **Output:**	Critical z = 1.9599640
+- Total sample size =	10156
+- Actual power =	0.9500087
+
+2.3: Social messages (i.e., conditions  4 & 5) versus Personal messages (i.e., conditions  6 & 7):
+
+- Odds ratio: (0.035/0.965)/(0.025/0.975) = 1.41
+
+Compute proportions for X parm $\pi$ value:
+
+```{r}
+# Social versus personal:
+hypothesis.test.data %>% 
+  group_by(condition) %>% 
+  dplyr::summarise(n= n()) %>% 
+  mutate(group = case_when(condition == 6 ~ "Personal", 
+                           condition == 7 ~ "Personal", 
+                           condition == 4  ~ "Social",
+                           condition == 5  ~ "Social")) %>% 
+  group_by(group) %>% 
+  dplyr::summarise(sum = sum(n)) %>% 
+  pivot_wider(names_from = group,
+              values_from = sum) %>% 
+  mutate(total = Social + Personal) %>% 
+ mutate(Proportion.Social.personal = (Social/total)*100) 
+```
+**G Power protocol & outcomes for power analysis:**
+
+- **Options:** Large sample z-Test, Demidenko (2007) with var corr 
+- **Analysis:**	A priori: Compute required sample size 
+- Input: Tail(s) = Two
+-	Pr(Y=1|X=1) H1 = 0.035
+-	Pr(Y=1|X=1) H0 = 0.025
+-	$\alpha$ err prob	=	0.05
+-	Power (1--$\beta$ err prob) =	0.95
+-	R$^2$ other X =	0
+-	X distribution =	Binomial
+-	X parm $\pi$ =	0.504
+- **Output:**	Critical z =	1.9599640
+- Total sample size =	15111
+- Actual power =	0.9500091
+
+### Hypothesis 3
+H$^3$: Messages delivered via in-account notification will be more effective at increasing deposit limit uptake than those delivered via email (due to reduced friction).
+			
+- Odds ratio: (0.035/0.965)/(0.015/0.985) = 2.38
+Compute proportions for X parm $\pi$ value:
+
+```{r}
+# In-Account versus email delivery:
+hypothesis.test.data %>% 
+  group_by(condition) %>% 
+  dplyr::summarise(n= n()) %>% 
+  mutate(group = case_when(condition == 2 ~ "Email", 
+                           condition == 4 ~ "Email", 
+                           condition == 6  ~ "Email",
+                           condition == 3  ~ "Account",
+                           condition == 5  ~ "Account",
+                           condition == 7  ~ "Account")) %>% 
+  group_by(group) %>% 
+  dplyr::summarise(sum = sum(n)) %>% 
+  pivot_wider(names_from = group,
+              values_from = sum) %>% 
+  mutate(total = Email + Account) %>% 
+ mutate(Proportion.Account.Email = (Account/total)*100) 
+```			
+**G Power protocol of power analysis:**
+	
+- **Options:** Large sample z-Test, Demidenko (2007) with var corr 
+- **Analysis:**	A priori: Compute required sample size 
+- Input: Tail(s) =	Two
+-	Pr(Y=1|X=1) H1 = 0.03
+-	Pr(Y=1|X=1) H0 = 0.02
+-	$\alpha$ err prob	=	0.05
+-	Power (1--$\beta$ err prob) =	0.95
+-	R$^2$ other X =	0
+-	X distribution =	Binomial
+-	X parm $\pi$ =	0.481
+- **Output:**	Critical z = 1.9599640
+- Total sample size	=	12642
+- Actual power =	0.9500131
+
+## New participant sample description table
+
+Reviewers and editors requested a more detailed participant characteristics table which will certainly be informative. Let's create a html using the gtsummary package and we will tidy this version up in the ms. 
+```{r}
+# Wrangle data into a usable format for Table:
+table1.data<- hypothesis.test.data %>% 
+    mutate(condition = as.character(condition)
+         ) %>%
+  dplyr::select(condition,
+                                Age = age, 
+                                Gender = gender,
+                                limit_setter_pre,
+                                "Average daily wager" = average_daily_wager_pre,
+                                "SD of daily wager" = daily_wager_SD_pre,
+                                "Net loss" = net_loss_pre,
+                                "Betting frequency" = betting_days_frequency_pre,
+                                "Betting intensity" =  betting_intensity_pre) %>%
+  mutate(Gender = fct_recode(Gender,
+                         "Female" = "F",
+                         "Male" = "M",
+                         "Unknown" = "U"
+                         )) %>%
+  mutate(limit_setter_pre = fct_recode(limit_setter_pre,
+                         "No" = "None",
+                         "Yes" = "PreLimitSetter")) %>%
+  dplyr::rename("Previous limit set" = limit_setter_pre) %>%
+   mutate(condition = fct_recode(condition,
+                         "Controls" = "1",
+                         "Informative (e)"= "2",
+                         "Informative (i-a)" = "3",
+                         "Social (e)"  = "4",
+                         "Social (i-a)" = "5",
+                         "Personal (e)" = "6",
+                         "Personal (i-a)" = "7"))
+
+# Create table:
+tbl_summary(table1.data, # Dataset with select columns to summarise
+    by = condition, # split table by group
+  statistic = list(all_continuous() ~ "{mean} ({sd})", # what stats to present and how
+                     all_categorical() ~ "{n} ({p}%)"),# what stats to present and how
+    digits = all_continuous() ~ 1)  %>%
+   add_overall() %>% # add an overall column
+  modify_header(label ~ "**Variable**") %>% # update the first column header%>%
+  as_kable_extra(booktabs = T,
+                 caption = "Sample characteristics") %>%
+    kable_classic(full_width = F, html_font = "Cambria")
+```
+<br><br>
+
+## Amend Figure 1: CONSORT Flowchart
+Thankfully, the editor picked up that there were some errors in the figures within our flowchart (Fig 1) outlining our selection and recruitment process. Let's recreate this figure entirely from the data using R code (rather than doing it in Microsoft Word and copy-pasting, as previously done) which should avoid future calculation errors.
+
+
+```{r message=FALSE, warning=FALSE, fig.align = 'center', results = FALSE, fig.height = 8.47, fig.width = 5.61}
+
+TxtGp <- getOption("Poppins", default = gpar(fontfamily = "Poppins", fontsize = 8))
+
+TxtGp2 <- getOption("Poppins", default = gpar(fontfamily = "Poppins", fontsize = 10))
+
+grid.newpage()
+
+# box1
+box1 <-boxGrob(y = 0.91,
+               x = 0.63,
+        txt_gp = TxtGp,
+                      glue("All customers meeting eligibility criteria identified",
+                           "by online wagering operators",
+                           .sep = "\n"))
+
+# Figures for box 2:
+# No. customers overall & by Operator:
+starting_sample<- nrow(all.operators.data) # Starting sample
+Operator_1_Starting_Sample <- all.operators.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "1") %>%dplyr::select(n) # Operator 1 starting sample
+Operator_2_Starting_Sample <- all.operators.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "2") %>%dplyr::select(n) # Operator 2 starting sample
+Operator_3_Starting_Sample <- all.operators.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "3") %>%dplyr::select(n) # Operator 3 starting sample
+Operator_4_Starting_Sample <- all.operators.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "4") %>%dplyr::select(n) # Operator 4 starting sample
+
+# Box 2
+box2 <-boxGrob(y = 0.76,
+               x = 0.63,
+        txt_gp = TxtGp,
+                      glue("Random samples of these customers selected by",
+                      "each operator:",
+                           "- Operator 1: n = {no1}",
+                           "- Operator 2: n = {no2}",
+                           "- Operator 3: n = {no3}",
+                           "- Operator 4: n = {no4}",
+                           "- Total: n = {ntotal}",
+                           no1 = Operator_1_Starting_Sample,
+                           no2 = Operator_2_Starting_Sample,
+                           no3 = Operator_3_Starting_Sample,
+                           no4 = Operator_4_Starting_Sample,
+                           ntotal = starting_sample,
+                           .sep = "\n"))
+
+box1
+box2
+connectGrob(box1, box2, "vertical"
+            # , lty_gp = gpar(lwd = .5)
+            )
+
+# Box 3
+box3 <-boxGrob(y = 0.85,
+               x = 0.17,
+        txt_gp = TxtGp2,
+        box_gp = gpar(fill = "#add8e6"), 
+                      glue("Identification &",
+                           "sampling",
+                           .sep = "\n"))
+box3
+
+# Figures for box 4:
+# No. customers by condition:
+Condition_1_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "1") %>%dplyr::select(n) # Condition 1 starting sample
+Condition_2_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "2") %>%dplyr::select(n) # Condition 2 starting sample
+Condition_3_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "3") %>%dplyr::select(n) # Condition 3 starting sample
+Condition_4_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "4") %>%dplyr::select(n) # Condition 4 starting sample
+Condition_5_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "5") %>%dplyr::select(n) # Condition 5 starting sample
+Condition_6_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "6") %>%dplyr::select(n) # Condition 6 starting sample
+Condition_7_Starting_Sample <- all.operators.data %>% group_by(condition) %>% dplyr::summarise(n = n()) %>% filter(condition == "7") %>%dplyr::select(n) # Condition 7 starting sample
+
+# Box 4
+box4 <-boxGrob(y = 0.54,
+               x = 0.63,
+        txt_gp = TxtGp,
+                      glue("Entire sample randomly allocated by operators to", 
+                           "conditions:",
+                           "- Controls: n = {no1}",
+                           "- Informative [email]: n = {no2}",
+                           "- Informative [in-account]: n = {no3}",
+                           "- Personal [email]: n = {no4}",
+                           "- Personal [in-account]: n = {no5}",
+                           "- Social [email]: n = {no6}",
+                           "- Social [in-account]: n = {no7}",
+                           no1 = Condition_1_Starting_Sample,
+                           no2 = Condition_2_Starting_Sample,
+                           no3 = Condition_3_Starting_Sample,
+                           no4 = Condition_4_Starting_Sample,
+                           no5 = Condition_5_Starting_Sample,
+                           no6 = Condition_6_Starting_Sample,
+                           no7 = Condition_7_Starting_Sample,
+                           .sep = "\n"))
+# Box 5
+box5 <-boxGrob(y = 0.54,
+               x = 0.17,
+        txt_gp = TxtGp2,
+        box_gp = gpar(fill = "#add8e6"), 
+                      glue("Randomisation",
+                           "& allocation",
+                           .sep = "\n"))
+box4
+box5
+connectGrob(box2, box4, "vertical")
+
+# Figures for box 6:
+# No. customers excluded for each reason:
+
+less_5_betting_days<- nrow(too.few.betting.days) # created the object in this function during the original filtering process
+
+less_90_account_days<- nrow(late.registration.date) # created the object in this function during the original filtering process
+
+closed_account_prior_to_window <- nrow(account.closers) # Newly created in filtering process above
+
+on_timeout_entire_window <- nrow(timeout_for_entire_window) # Newly created in filtering process above
+
+self_excluded_entire_window <- nrow(self.excluders.all) #  Newly created in filtering process above
+
+# Box 6
+box6 <-boxGrob(y = 0.32,
+               x = 0.63,
+        txt_gp = TxtGp,
+                      glue("Removal of customers not meeting pre-specified",
+                      "eligibility criteria:",
+                           "- <5 betting days in the last 30 : n = {no1}",
+                           "- <90 days since registering account: n = {no2}",
+                           "- Closed account prior to messaging window*: n = {no3}",
+                           "- On timeout for all of messaging window*: n = {no4}",
+                           "- Self-excluded for all of messaging window*: n = {no5}",
+                           no1 = less_5_betting_days,
+                           no2 = less_90_account_days,
+                           no3 = closed_account_prior_to_window,
+                           no4 = on_timeout_entire_window,
+                           no5 = self_excluded_entire_window,
+                           .sep = "\n"))
+
+
+box6
+connectGrob(box4, box6, "vertical")
+
+# Box 7
+box7 <-boxGrob(y = 0.32,
+               x = 0.17,
+        txt_gp = TxtGp2,
+        box_gp = gpar(fill = "#add8e6"), 
+                      glue("Research team",
+                           "elgibility checks",
+                           .sep = "\n"))
+box7
+
+# Figures for box 8:
+# No. customers overall & by Operator:
+hypothesis_testing_sample<- nrow(hypothesis.test.data) 
+Operator_1_hypothesis_testing_Sample <- hypothesis.test.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "1") %>%dplyr::select(n) # Operator 1 starting sample
+Operator_2_hypothesis_testing_Sample <- hypothesis.test.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "2") %>%dplyr::select(n) # Operator 2 starting sample
+Operator_3_hypothesis_testing_Sample <- hypothesis.test.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "3") %>%dplyr::select(n) # Operator 3 starting sample
+Operator_4_hypothesis_testing_Sample <- hypothesis.test.data %>% group_by(operator) %>% dplyr::summarise(n = n()) %>% filter(operator == "4") %>%dplyr::select(n) # Operator 4 starting sample
+
+# Box 8
+box8 <-boxGrob(y = 0.13,
+               x = 0.63,
+        txt_gp = TxtGp,
+                      glue("Remaining sample included in tests of hypotheses:",
+                           "- Operator 1: n = {no1}",
+                           "- Operator 2: n = {no2}",
+                           "- Operator 3: n = {no3}",
+                           "- Operator 4: n = {no4}",
+                           "- Total: n = {ntotal}",
+                           no1 = Operator_1_hypothesis_testing_Sample,
+                           no2 = Operator_2_hypothesis_testing_Sample,
+                           no3 = Operator_3_hypothesis_testing_Sample,
+                           no4 = Operator_4_hypothesis_testing_Sample,
+                           ntotal = hypothesis_testing_sample,
+                           .sep = "\n"))
+
+box8
+connectGrob(box6, box8, "vertical")
+
+# Box 9
+box9 <-boxGrob(y = 0.13,
+               x = 0.17,
+        txt_gp = TxtGp2,
+        box_gp = gpar(fill = "#add8e6"), 
+                      glue("Hypothesis test",
+                           "sample",
+                           .sep = "\n"))
+box9
+
+# Save in/as: Figures/Figure1updated.pdf
+
+```
+<br><br>
+
+## Table exploratory ANCOVAs
+There was some suggestion that the exploratory results section was difficult to follow. Let's put all outcomes from robust ANCOVAs into tables.
+
+Start with analyses relating to gambling expenditure:
+```{r}
+# Average daily wager
+# Robust.ANCOVA.averwager
+
+averwager <- avwager.evalupts %>% bind_cols(avwager.n1,
+                  avwager.n2,
+                  avwager.diff,
+                  avwager.se,
+                  avwager.lowerci,
+                  avwager.upperci,
+                  avwager.stat,
+                  avwager.pvalue) %>%
+  dplyr::rename(Evaluation_points = 1,
+                n1 = 2,
+                n2 = 3,
+                Mean_difference = 4,
+                SE = 5,
+                lowerci = 6,
+                upperci = 7,
+                Statistic = 8,
+                pvalue = 9)
+
+# Standard deviation of wager
+# Robust.ANCOVA.sd.averwager
+
+sd.averwager <-   sd.avwager.evalupts %>% bind_cols(avwager.n1,
+                  sd.avwager.n2,
+                  sd.avwager.diff,
+                  sd.avwager.se,
+                  sd.avwager.lowerci,
+                  sd.avwager.upperci,
+                  sd.avwager.stat,
+                  sd.avwager.pvalue) %>%
+  dplyr::rename(Evaluation_points = 1,
+                n1 = 2,
+                n2 = 3,
+                Mean_difference = 4,
+                SE = 5,
+                lowerci = 6,
+                upperci = 7,
+                Statistic = 8,
+                pvalue = 9)
+
+# Net loss
+# Robust.ANCOVA.net.loss
+
+net.loss<-netloss.evalupts %>% bind_cols(avwager.n1,
+          netloss.n2,
+          netloss.diff,
+          netloss.se,
+          netloss.lowerci,
+          netloss.upperci,
+          netloss.stat,
+          netloss.pvalue) %>%
+  dplyr::rename(Evaluation_points = 1,
+                n1 = 2,
+                n2 = 3,
+                Mean_difference = 4,
+                SE = 5,
+                lowerci = 6,
+                upperci = 7,
+                Statistic = 8,
+                pvalue = 9)
+
+
+Expenditure.ancova.comparisons.data<- averwager %>% bind_rows(sd.averwager,
+                       net.loss) %>%
+  mutate(across(1:8, round, 2))
+
+kbl(Expenditure.ancova.comparisons.data,
+    digits = 4,
+    caption = "Comparisons between limit setters and non-limit setters on expenditure variables: Robust ANCOVA outcomes",
+     escape = F
+   ) %>%
+    pack_rows("Average daily wager", 1, 5) %>%
+    pack_rows("SD of average daily wager", 6, 10) %>% 
+    pack_rows("Net loss", 11, 15) %>%
+  add_header_above(c("Point of comparison" = 3, "Difference between samples" = 4, "Robust ANCOVA outcomes" = 2)) %>% 
+  footnote(general = "SE = Standard error; CI = 95% confidence interval; Bold p values are statistically significant at < 0.0083",
+  footnote_as_chunk = F) %>%
+    kable_classic(full_width = F, html_font = "Cambria")
+
+```
+<br><br>
+
+Let's do the same for gambling behavioural/involvement variables:
+```{r}
+# Betting frequency
+Robust.ANCOVA.betting.frequency
+
+betting.frequency <-betting.frequency.evalupts %>% bind_cols(betting.frequency.n1,
+                  betting.frequency.n2,
+                  betting.frequency.diff,
+                  betting.frequency.se,
+                  betting.frequency.lowerci,
+                  betting.frequency.upperci,
+                  betting.frequency.stat,
+                  betting.frequency.pvalue) %>%
+  dplyr::rename(Evaluation_points = 1,
+                n1 = 2,
+                n2 = 3,
+                Mean_difference = 4,
+                SE = 5,
+                lowerci = 6,
+                upperci = 7,
+                Statistic = 8,
+                pvalue = 9)
+
+
+# Betting intensity
+Robust.ANCOVA.betting.intensity 
+
+betting.intensity <-betting.intensity.evalupts %>% bind_cols(betting.intensity.n1,
+          betting.intensity.n2,
+          betting.intensity.diff,
+          betting.intensity.se,
+          betting.intensity.lowerci,
+          betting.intensity.upperci,
+          betting.intensity.stat,
+          betting.intensity.pvalue) %>%
+  dplyr::rename(Evaluation_points = 1,
+                n1 = 2,
+                n2 = 3,
+                Mean_difference = 4,
+                SE = 5,
+                lowerci = 6,
+                upperci = 7,
+                Statistic = 8,
+                pvalue = 9)
+
+
+Involvement.ancova.comparisons.data<- betting.frequency %>% 
+  bind_rows(betting.intensity) %>%
+  mutate(across(1:8, round, 2))
+
+kbl(Involvement.ancova.comparisons.data,
+    digits = 4,
+    caption = "Comparisons between limit setters & non-limit setters on expenditure variables: Robust ANCOVA outcomes",
+     escape = F
+   ) %>%
+    pack_rows("Betting frequency", 1, 5) %>%
+    pack_rows("Betting intensity", 6, 10) %>% 
+  add_header_above(c("Point of comparison" = 3, "Difference between samples" = 4, "Robust ANCOVA outcomes" = 2)) %>% 
+  footnote(general = "SE = Standard error; CI = 95% confidence interval; Bold p values are statistically significant at < 0.0083",
+  footnote_as_chunk = F) %>%
+    kable_classic(full_width = F, html_font = "Cambria")
+```
+<br><br>
+
+## Re-test hypotheses
+The statistical editors suggested we perform logistical regressions instead of our Chi-square analyses, which are likely more suitable test about hypotheses and will allow for covariate adjustment. We compute adjusted and unadjusted logistic regressions here but only report the former in our manuscript. 
+
+Found some really useful notes on logistic Regression and Adjusted odds ratios ;
+
+- https://rstudio-pubs-static.s3.amazonaws.com/138745_69f9cf4d1d8b41d781aa5f3ac4d84e35.html
+
+First, we need to check whether there's an interaction between message content and message that, if present, would have necessitate separate testing of conditions at each intersection (e.g., testing the effect of delivery move at each level of message content).
+``` {r warnings = FALSE, message = FALSE}
+
+interaction.log.reg.data <- hypothesis.test.data %>%
+   filter(condition != "1") %>% # Remove controls
+    mutate(content = case_when(condition == 4 ~ "Social", 
+                           condition == 5 ~ "Social", 
+                           condition == 2  ~ "Informative",
+                           condition == 3  ~ "Informative",
+                           condition == 6 ~ "Personal", 
+                           condition == 7 ~ "Personal")) %>% # Designate controls
+    mutate(content = as.factor(content)) %>%
+    mutate(window_limit_setter = fct_recode(window_limit_setter,
+                                        "1" = "LimitSetter",
+                                        "0" = "None")) %>%
+    mutate(delivery = case_when(condition == 2 ~ "Email", # Designate delivery type
+                           condition == 4 ~ "Email", 
+                           condition == 6  ~ "Email",
+                           condition == 3  ~ "Account",
+                           condition == 5  ~ "Account",
+                           condition == 7  ~ "Account")) %>% 
+    mutate(delivery = as.factor(delivery))
+  
+#  Check all conversions appear correct
+interaction.log.reg.data %>% dplyr::select(condition, window_limit_setter, content, delivery) %>% print(n=150)
+
+interaction.log.reg <- glm(window_limit_setter ~ content +
+                             delivery +
+                             content*delivery,
+    data = interaction.log.reg.data, 
+    family = "binomial") 
+
+# View summary of outcomes:
+summary(interaction.log.reg) 
+
+tidy.interaction.log.reg <-  tidy(interaction.log.reg)
+```
+Now we know there is no interaction, we can test each of our hypotheses as planned.
+
+### Re-test Hypothesis 1
+Do messages predict limit setting? 
+
+``` {r warnings = FALSE, message = FALSE}
+# Create dataset:
+hyp1.data <- hypothesis.test.data %>%
+    mutate(group = case_when(condition >1 ~ "Messages", # designate message conditions
+                               condition == 1  ~ "Controls")) %>% # designate controls
+    mutate(group = as.factor(group)) %>%
+    mutate(window_limit_setter = fct_recode(window_limit_setter,
+                                        "1" = "LimitSetter",
+                                        "0" = "None"))
+
+# Re-level our outcome:
+hyp1.data$window_limit_setter <-  relevel(hyp1.data$window_limit_setter, ref = "0")
+
+# Run analysis:
+hyp1.log.reg <- glm(window_limit_setter ~ group,
+    data = hyp1.data, 
+    family = "binomial") 
+
+# View summary of outcomes:
+summary(hyp1.log.reg) 
+
+tidy.hyp1.log.reg <-  tidy(hyp1.log.reg)
+
+# Compute unadjusted odds ratios:
+ORs1 <- exp(hyp1.log.reg$coefficients)
+OR.CIs1 <- round(cbind(ORs1, exp(confint(hyp1.log.reg))),2) %>% 
+  as.data.frame()  %>%
+  tibble::rownames_to_column("term") %>%
+   filter(term == "groupMessages")
+
+# Now include the other predictors on the model so that we can calculate adjusted ORs:
+hyp1.1.log.reg.data <-   hyp1.data %>%
+    mutate(average_daily_wager_pre_cuberoot = average_daily_wager_pre^(1/3)) # Need to convert this predictor as per protocol for first LR
+
+# Run analysis:
+hyp1.1.log.reg <-  glm(window_limit_setter ~ group +
+                                      operator +
+                                      betting_days_frequency_pre +
+                                      average_daily_wager_pre_cuberoot +
+                                      age +
+                                      betting_intensity_pre +
+                                      gender + 
+                                      limit_setter_pre,
+    data = hyp1.1.log.reg.data, 
+    family = "binomial") 
+
+summary(hyp1.1.log.reg) 
+tidy(hyp1.1.log.reg) 
+
+tidy.hyp1.1.log.reg <- tidy(hyp1.1.log.reg) %>%
+   filter(term == "groupMessages")
+
+# Calculate odds ratios and their CIs:
+aORs1 <- exp(hyp1.1.log.reg$coefficients)
+aOR.CIs1 <- round(cbind(aORs1, exp(confint(hyp1.1.log.reg))),2)
+
+# Extract just the grouping variable ORs:
+aOR.CIs1.group.only <- aOR.CIs1 %>% as.data.frame() %>% 
+  tibble::rownames_to_column("term") %>% 
+  filter(term == "groupMessages")
+
+# Bind together key results:
+hyp1.log.reg.outcomes<- tidy.hyp1.1.log.reg %>%
+  bind_cols(OR.CIs1) %>% 
+ dplyr::select(-6) %>%
+  bind_cols(aOR.CIs1.group.only) %>% 
+   dplyr::select(-9) %>%
+  # as.data.frame() %>% 
+  dplyr::select(Term = 1,
+         Beta = 2,
+         SE = 3,
+         Statistic = 4,
+         p_value = 5,
+         unajustedOR = 6,
+         unajustedOR_LB = 7,
+         unajustedOR_UB = 8,
+         ajustedOR = 9,
+         ajustedOR_LB = 10,
+         ajustedOR_UB = 11) %>% 
+  mutate(Term = as.factor(Term)) %>% 
+  mutate(Term = fct_recode(Term,
+                           Messages = "groupMessages")) %>%
+  print()
+
+# See sample size for each group:
+hyp1.group.sample.size<- hyp1.data %>% group_by(group) %>% 
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+
+# overall sample size:
+hyp1.overall.sample.size<- hyp1.data %>%
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+```
+
+### Re-test Hypothesis 2
+Does messages content predict limit setting? 
+
+We can reuse the dataset we created for testing the interaction for this hyp.
+``` {r warnings = FALSE, message = FALSE}
+# Re-level our outcome:
+interaction.log.reg.data$window_limit_setter <-  relevel(interaction.log.reg.data$window_limit_setter, ref = "0") 
+
+# Re-level our predictor:
+interaction.log.reg.data$content <-  relevel(interaction.log.reg.data$content, ref = "Informative") 
+
+# Run analysis:
+hyp2.log.reg <- glm(window_limit_setter ~ content,
+    data = interaction.log.reg.data, 
+    family = "binomial") 
+
+# View summary of outcomes:
+summary(hyp2.log.reg) 
+
+tidy.hyp2.log.reg <- tidy(hyp2.log.reg) %>% print()
+
+# Compute unadjusted odds ratios:
+ORs2 <- exp(hyp2.log.reg$coefficients)
+OR.CIs2 <- round(cbind(ORs2, exp(confint(hyp2.log.reg))),2) %>% 
+  as.data.frame() %>% 
+   tibble::rownames_to_column("term") %>%
+    filter(term == "contentPersonal" |
+         term == "contentSocial") %>%
+  print()
+
+
+# Now include the other predictors on the model so that we can calculate adjusted ORs:
+hyp2.1.log.reg.data <-   interaction.log.reg.data %>%
+    mutate(average_daily_wager_pre_cuberoot = average_daily_wager_pre^(1/3)) # Need to convert this predictor as per protocol for first LR
+
+# Run analysis:
+hyp2.1.log.reg <-  glm(window_limit_setter ~ content +
+                                      operator +
+                                      betting_days_frequency_pre +
+                                      average_daily_wager_pre_cuberoot +
+                                      age +
+                                      betting_intensity_pre +
+                                      gender + 
+                                      limit_setter_pre,
+    data = hyp2.1.log.reg.data, 
+    family = "binomial") 
+
+summary(hyp2.1.log.reg) 
+tidy(hyp2.1.log.reg)
+
+tidy.hyp2.1.log.reg <-  tidy(hyp2.1.log.reg) %>%filter(term == "contentPersonal" |
+         term == "contentSocial") %>% 
+  print()
+
+# Calculate odds ratios and their CIs:
+aORs2 <- exp(hyp2.1.log.reg$coefficients)
+aOR.CIs2  <- round(cbind(aORs2, exp(confint(hyp2.1.log.reg))),2) %>% 
+  print() 
+
+# Extract just the grouping variable ORs:
+aOR.CIs2.group.only <- aOR.CIs2 %>% as.data.frame() %>% 
+  tibble::rownames_to_column("term") %>% 
+  filter(term == "contentPersonal" |
+         term == "contentSocial")
+
+
+# Bind together key results:
+hyp2.log.reg.outcomes<- tidy.hyp2.1.log.reg %>% 
+  bind_cols(OR.CIs2) %>% 
+     dplyr::select(-6) %>%
+  bind_cols(aOR.CIs2.group.only) %>% 
+    dplyr::select(-9) %>%
+  # as.data.frame() %>% 
+  dplyr::select(Term = 1,
+         Beta = 2,
+         SE = 3,
+         Statistic = 4,
+         p_value = 5,
+         unajustedOR = 6,
+         unajustedOR_LB = 7,
+         unajustedOR_UB = 8,
+         ajustedOR = 9,
+         ajustedOR_LB = 10,
+         ajustedOR_UB = 11) %>% 
+  mutate(Term = as.factor(Term)) %>% 
+  mutate(Term = fct_recode(Term,
+                           "Personal message" = "contentPersonal",
+                           "Social message" = "contentSocial")) %>% 
+  print() 
+
+# See sample size for each group:
+hyp2.group.sample.size<- interaction.log.reg.data %>% group_by(content) %>% 
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+
+# overall sample size:
+hyp2.and.3.overall.sample.size<- interaction.log.reg.data %>%
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+```
+
+### Bayes test of Hypothesis 2
+
+As the terms were all non-sig, we need to calculate Bayes factors for this finding:
+
+Useful site and paper:
+
+-https://github.com/jomulder/BFpack 
+-https://arxiv.org/pdf/1911.07728.pdf
+
+```{r}
+get_estimates(hyp2.1.log.reg)
+
+BF_hyp2.1.log.reg <- BF(hyp2.1.log.reg, hypothesis = "contentSocial  > contentPersonal >  0")
+
+summary(BF_hyp2.1.log.reg)
+
+Bayes.outcomes.hyp2<- BF_hyp2.1.log.reg$BFtable_confirmatory
+
+Bayes.outcomes.hyp2[1,7]
+
+```
+
+### Re-test Hypothesis 3
+Does messages delivery method predict limit setting? 
+
+Again, we can reuse the dataset we created for testing the interaction for this hyp.
+``` {r warnings = FALSE, message = FALSE}
+
+# Re-level our predictor:
+interaction.log.reg.data$delivery <-  relevel(interaction.log.reg.data$delivery, ref = "Email") 
+
+hyp3.log.reg <- glm(window_limit_setter ~ delivery,
+    data = interaction.log.reg.data, 
+    family = "binomial") 
+
+# View summary of outcomes:
+summary(hyp3.log.reg) 
+
+tidy.hyp3.log.reg <- tidy(hyp3.log.reg) %>% 
+  print() 
+
+# Compute unadjusted odds ratios:
+ORs3 <- exp(hyp3.log.reg$coefficients)
+OR.CIs3 <- round(cbind(ORs3, exp(confint(hyp3.log.reg))),2) %>%
+as.data.frame() %>% 
+  tibble::rownames_to_column("term") %>% 
+  filter(term == "deliveryAccount")
+
+
+
+# Now include the other predictors on the model so that we can calculate adjusted ORs:
+hyp3.1.log.reg.data <-   interaction.log.reg.data %>%
+    mutate(average_daily_wager_pre_cuberoot = average_daily_wager_pre^(1/3)) # Need to convert this predictor as per protocol for first LR
+
+# Run analysis:
+hyp3.1.log.reg <-  glm(window_limit_setter ~ delivery +
+                                      operator +
+                                      betting_days_frequency_pre +
+                                      average_daily_wager_pre_cuberoot +
+                                      age +
+                                      betting_intensity_pre +
+                                      gender,
+                                      # limit_setter_pre,
+    data = hyp3.1.log.reg.data, 
+    family = "binomial") 
+
+summary(hyp3.1.log.reg) 
+
+tidy(hyp3.1.log.reg)
+
+tidy.hyp3.1.log.reg <-  tidy(hyp3.1.log.reg) %>% 
+  filter(term == "deliveryAccount") %>% 
+  print()
+
+# Calculate odds ratios and their CIs:
+aORs3 <- exp(hyp3.1.log.reg$coefficients)
+aOR.CIs3  <-round(cbind(aORs3, exp(confint(hyp3.1.log.reg))),2) %>% 
+  print() 
+
+# Extract just the grouping variable ORs:
+aOR.CIs3.group.only <- aOR.CIs3 %>% as.data.frame() %>% 
+  tibble::rownames_to_column("term") %>% 
+  filter(term == "deliveryAccount")
+
+# Bind together key results:
+hyp3.log.reg.outcomes<- tidy.hyp3.1.log.reg %>%
+  bind_cols(OR.CIs3) %>% 
+       dplyr::select(-6) %>%
+  bind_cols(aOR.CIs3.group.only) %>% 
+       dplyr::select(-9) %>%
+  # as.data.frame() %>% 
+  dplyr::select(Term = 1,
+         Beta = 2,
+         SE = 3,
+         Statistic = 4,
+         p_value = 5,
+         unajustedOR = 6,
+         unajustedOR_LB = 7,
+         unajustedOR_UB = 8,
+         ajustedOR = 9,
+         ajustedOR_LB = 10,
+         ajustedOR_UB = 11) %>% 
+  mutate(Term = as.factor(Term)) %>% 
+  mutate(Term = fct_recode(Term,
+                           "In-account" = "deliveryAccount")) %>% 
+  print() 
+
+# See sample size for each group:
+hyp3.group.sample.size<- interaction.log.reg.data %>% group_by(delivery) %>% 
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+
+```
+
+### Bayes test of Hypothesis 3
+
+As the terms were all non-sig, we need to calculate Bayes factors for this finding too:
+
+```{r}
+get_estimates(hyp3.1.log.reg)
+
+BF_hyp3.1.log.reg <- BF(hyp3.1.log.reg, hypothesis = "deliveryAccount  >  0")
+
+summary(BF_hyp3.1.log.reg)
+
+Bayes.outcomes.hyp3<- BF_hyp3.1.log.reg$BFtable_confirmatory
+
+Bayes.outcomes.hyp3[1,7]
+```
+
+### Intention to treat analysis (Hyp1)
+
+```{r}
+Intention.to.treat.test.data<- all.operators.data %>%
+  anti_join(account.closers) %>% # Remove those who closed their account before messages could be sent 
+    mutate(group = case_when(condition >1 ~ "Messages", # designate message conditions
+                               condition == 1  ~ "Controls")) %>% # designate controls
+    mutate(group = as.factor(group)) %>%
+    mutate(window_limit_setter = fct_recode(window_limit_setter,
+                                        "1" = "LimitSetter",
+                                        "0" = "None"))
+
+# Re-level our outcome:
+Intention.to.treat.test.data$window_limit_setter <-  relevel(Intention.to.treat.test.data$window_limit_setter, ref = "0")
+
+# Run analysis:
+ITT.log.reg <- glm(window_limit_setter ~ group,
+    data = Intention.to.treat.test.data, 
+    family = "binomial") 
+
+# View summary of outcomes:
+summary(ITT.log.reg) 
+
+tidy.ITT.log.reg <-  tidy(ITT.log.reg)
+
+# Compute unadjusted odds ratios:
+ORs4 <- exp(ITT.log.reg$coefficients)
+OR.CIs4 <- round(cbind(ORs4, exp(confint(ITT.log.reg))),2) %>%
+  as.data.frame() %>% 
+  tibble::rownames_to_column("term") %>% 
+  filter(term == "groupMessages")
+
+# Now include the other predictors on the model so that we can calculate adjusted ORs:
+ITT.adjusted.log.reg.data <-   Intention.to.treat.test.data %>%
+    mutate(average_daily_wager_pre_cuberoot = average_daily_wager_pre^(1/3)) # Need to convert this predictor as per protocol for first LR
+
+# Run analysis:
+ITT.adjusted.log.reg <-  glm(window_limit_setter ~ group +
+                                      operator +
+                                      betting_days_frequency_pre +
+                                      average_daily_wager_pre_cuberoot +
+                                      age +
+                                      betting_intensity_pre +
+                                      gender + 
+                                      limit_setter_pre,
+    data = ITT.adjusted.log.reg.data, 
+    family = "binomial") 
+
+summary(ITT.adjusted.log.reg) 
+tidy.ITT.adjusted.log.reg <-  tidy(ITT.adjusted.log.reg) %>% 
+  filter(term == "groupMessages") %>% 
+  print()
+
+# Calculate odds ratios and their CIs:
+aORs4 <- exp(ITT.adjusted.log.reg$coefficients)
+aOR.CIs4 <- round(cbind(aORs4, exp(confint(ITT.adjusted.log.reg))),2)
+
+# Extract just the grouping variable ORs:
+aOR.CIs4.group.only <- aOR.CIs4 %>% as.data.frame() %>% 
+  tibble::rownames_to_column("term") %>% 
+  filter(term == "groupMessages")
+
+# Bind together key results:
+ITT.log.reg.outcomes<- tidy.ITT.adjusted.log.reg %>% 
+  bind_cols(OR.CIs4) %>% 
+         dplyr::select(-6) %>%
+  bind_cols(aOR.CIs4.group.only) %>% 
+         dplyr::select(-9) %>%
+  # as.data.frame() %>% 
+  dplyr::select(Term = 1,
+         Beta = 2,
+         SE = 3,
+         Statistic = 4,
+         p_value = 5,
+         unajustedOR = 6,
+         unajustedOR_LB = 7,
+         unajustedOR_UB = 8,
+         ajustedOR = 9,
+         ajustedOR_LB = 10,
+         ajustedOR_UB = 11) %>% 
+  mutate(Term = as.factor(Term)) %>% 
+  mutate(Term = fct_recode(Term,
+                           Messages = "groupMessages")) %>% 
+  print() 
+
+# See sample size for each group:
+ITT.group.sample.size<- Intention.to.treat.test.data %>% group_by(group) %>% 
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+
+# overall sample size:
+ITT.overall.sample.size<- Intention.to.treat.test.data %>%
+  dplyr::summarise(n = n(),
+            ) %>%
+  print()
+
+```
+
+Now let's develop the table, as per reviewer requests (with which we agree), that summarises all of the logistic regression outcomes.
+```{r}
+all.hyp.log.regression.outcomes<- hyp1.log.reg.outcomes %>% 
+  bind_rows(ITT.log.reg.outcomes,
+            hyp2.log.reg.outcomes,
+            hyp3.log.reg.outcomes)
+
+kbl(all.hyp.log.regression.outcomes,
+    digits = 4,
+    caption = "Logistic regressions",
+     escape = F
+   ) %>%
+    pack_rows("Hypothesis 1: Overall impact of messages", 1, 1) %>%
+    pack_rows("ITT analysis*:  Overall impact of messages", 2, 2) %>% 
+    pack_rows("Hypothesis 2: Impact of message content", 3, 4) %>%
+   pack_rows("Hypothesis 3: Impact of delivery mode", 5, 5) %>%
+  add_header_above(c("", "Logistic regression" = 4, "Unadjusted ORs" = 3, "Covariate adjusted ORs" = 3)) %>%
+  footnote(general = c("Hypothesis 1: reference = No message",
+                       "Hypothesis 2: reference = Informative message",
+                       "Hypothesis 3: reference = Email delivery",
+                       "*Intention to treat (ITT) anlaysis involving all randomised participants (excl. 3 who closed their accounts before messages",
+                       "were sent) reference = No message"),
+  footnote_as_chunk = F) %>%
+    kable_classic(full_width = F, html_font = "Cambria")
+
+```
+<br><br>
+
+## Table of Primary outcomes
+The statistical editor requested a table summarising the primary outcome from the trial: limit setting rates by condition. 
+
+
+```{r}
+# Make a tidy dataset to table. Need to make several tables and combine:
+Group2I <- c("Intervention","Intervention")
+Group3I <- c("Intervention","Intervention","Intervention")
+Group6I <- c("Intervention","Intervention","Intervention","Intervention","Intervention","Intervention")
+Content2 <- c("","")
+Delivery3<- c("","","")
+Delivery2 <- c("","")
+
+# Total:
+  
+# Messages vs. controls:
+message.control.summary<- limit.summary  %>%
+    mutate(Group = case_when(condition >1 ~ "Intervention", # designate message conditions
+                               condition == 1  ~ "Control")) %>% # designate controls
+   group_by(Group) %>% 
+  dplyr::summarise(
+    n = sum(Total),
+    LimitSetter = sum(LimitSetter),
+  ) %>% 
+   bind_cols(Delivery2,
+             Content2) %>%
+  mutate(Percentage = (LimitSetter/n)*100) %>% 
+   dplyr::select(Group,
+                   Content = ...5,
+          "Delivery mode" = ...4,
+         n,
+         LimitSetter,
+         Percentage
+         ) 
+  
+# Combined delivery mode conditions:
+deliv.mode.summary<- limit.summary %>%
+  filter(Delivery != "Controls") %>% 
+  group_by(Delivery) %>% 
+  dplyr::summarise(
+    n = sum(Total),
+    LimitSetter = sum(LimitSetter),
+  ) %>% 
+  mutate(Percentage = (LimitSetter/n)*100) %>% 
+  bind_cols(Group2I,
+            Content2) %>%
+   dplyr::select(Group = ...5,
+                   Content = ...6,
+          "Delivery mode" = Delivery,
+         n,
+         LimitSetter,
+         Percentage
+         ) 
+
+# Combined message content conditions:
+
+
+content.summary<- limit.summary %>%
+  filter(Delivery != "Controls") %>% 
+  group_by(Message) %>% 
+  dplyr::summarise(
+    n = sum(Total),
+    LimitSetter = sum(LimitSetter),
+  ) %>% 
+  mutate(Percentage = (LimitSetter/n)*100) %>% 
+  bind_cols(Group3I,
+            Delivery3) %>%
+   dplyr::select(Group =...5,
+          "Content" = Message,
+         "Delivery mode" = ...6,
+         n,
+         LimitSetter,
+         Percentage
+         ) 
+
+# Single condition salaries and finalise:
+Conditions.summary <- limit.summary %>% 
+   filter(Delivery != "Controls") %>% 
+  bind_cols(Group6I) %>%
+  dplyr::select(Group = ...8,
+         Content = Message,
+         "Delivery mode" = Delivery,
+         n = Total,
+         LimitSetter,
+         Percentage
+         )  
+
+table2data<- message.control.summary %>%  bind_rows(Conditions.summary,
+            content.summary,
+            deliv.mode.summary)
+  
+kbl(table2data,
+    digits = 4,
+    caption = "Primary outcome summary: Number of limit setters per experimental conditions",
+     escape = F
+   ) %>%
+    pack_rows("Overall", 1, 2) %>%
+    pack_rows("All conditions", 3, 8) %>% 
+    pack_rows("Message content aggregates", 9, 11) %>%
+   pack_rows("Message delivery mode aggregates", 12, 13) %>%
+  # add_header_above(c("", "Logistic regression" = 4, "Unadjusted ORs" = 3, "Covariate adjusted ORs" = 3)) %>%
+    kable_classic(full_width = F, html_font = "Cambria")
+
+
+```
+
+## Unintended consequences of messages
+One reviewer referred to the number of people who may have self excluded or gone on a timeout in the window following messages. Let's look at these as potential unintended consequences of our messages.
+
+```{r}
+
+# Identify start a timeout during the messaging period:
+timeout.during <- all.operators.data %>%
+  filter(timeout_start_date_pre >=  as.Date("2019-10-14") &
+         timeout_start_date_post <=  as.Date("2019-10-23")) %>% 
+ dplyr::select(condition,
+               timeout_duration_pre, 
+         timeout_start_date_pre,
+         timeout_finish_date_pre,
+         timeout_pre,
+         operator,
+         window_limit_setter)
+
+nrow(timeout.during)
+# Only one person was on timeout and they were from Operator 4, condition 4. . 
+
+# What about in the 10 days after?
+timeout.after <- all.operators.data %>%
+  filter(timeout_start_date_pre >=  as.Date("2019-10-24") &
+         timeout_start_date_post <=  as.Date("2019-11-02")) %>% 
+ dplyr::select(condition,
+               timeout_duration_pre, 
+         timeout_start_date_pre,
+         timeout_finish_date_pre,
+         timeout_pre,
+         operator,
+         window_limit_setter)
+
+nrow(timeout.after)
+
+# See how many self-excluded during the messaging period:
+self.excluders.during<- all.operators.data %>%
+  filter(self_exclusion_start_date >=  as.Date("2019-10-14") &
+         self_exclusion_start_date <=  as.Date("2019-10-23")) %>%
+ dplyr::select(condition,
+               self_exclusion_start_date,
+         self_exclusion_finish_date,
+         self_exclusion,
+         # customerid,
+         operator,
+         window_limit_setter) 
+
+nrow(self.excluders.during)
+
+# What about in the 10 days after?
+self.excluders.10daysafter<- all.operators.data %>%
+  filter(condition != "1") %>% 
+  filter(self_exclusion_start_date >=  as.Date("2019-10-24") &
+         self_exclusion_start_date <=  as.Date("2019-11-02")) %>%
+ dplyr::select(condition,
+               self_exclusion_start_date,
+         self_exclusion_finish_date,
+         self_exclusion,
+         # customerid,
+         operator,
+         window_limit_setter) 
+
+nrow(self.excluders.10daysafter)
+
+# What about the 90 days after messages?
+all.operators.data %>%
+  filter(self_exclusion_start_date >=  as.Date("2019-10-14") &
+         self_exclusion_start_date <=  as.Date("2020-01-17")) %>%
+  group_by(self_exclusion_start_date) %>% 
+  dplyr::summarise(n= n()) %>% print(n=50)
+
+# There's a spike around Melbourne cup, it seems. But the messaging window does not appear to be unique in the terms of the number of people who self-excluded
+  
+```
+
+# -------------------------------------------------------------------------------
+
+#### Save final workspace environment for use in manuscript:
 ```{r warnings = FALSE, message = FALSE}
 save.image(file='ProjectOutcomes.RData')
 
